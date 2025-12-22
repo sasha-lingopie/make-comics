@@ -1,0 +1,159 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { ArrowRight, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
+
+interface CreateButtonProps {
+  prompt: string
+  style: string
+  characterFiles: File[]
+}
+
+export function CreateButton({ prompt, style, characterFiles }: CreateButtonProps) {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingStep, setLoadingStep] = useState(0)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    if (!isLoading) return
+
+    const steps = ["Enhancing prompt...", "Generating scenes...", "Creating your comic..."]
+    let currentStep = 0
+
+    const interval = setInterval(() => {
+      currentStep += 1
+      if (currentStep < steps.length) {
+        setLoadingStep(currentStep)
+      } else {
+        clearInterval(interval)
+      }
+    }, 2500)
+
+    return () => clearInterval(interval)
+  }, [isLoading])
+
+  const handleCreate = async () => {
+    if (!prompt.trim()) {
+      toast({
+        title: "Prompt required",
+        description: "Please enter a prompt to generate your comic",
+        variant: "destructive",
+        duration: 3000,
+      })
+      return
+    }
+
+    setIsLoading(true)
+    setLoadingStep(0)
+
+    try {
+      const apiKey = localStorage.getItem("together_api_key")
+
+      const characterUploads = await Promise.all(characterFiles.map((file) => fileToBase64(file)))
+
+      if (!apiKey) {
+        const comicData = {
+          prompt,
+          style,
+          characterUploads,
+        }
+        sessionStorage.setItem("firstPageData", JSON.stringify(comicData))
+        setTimeout(() => {
+          router.push("/editor")
+        }, 7500)
+        return
+      }
+
+      const response = await fetch("/api/generate-comic", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          apiKey,
+          style,
+          characterImages: characterUploads, // Send base64 images to API
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+
+        if (response.status === 402 || errorData.errorType === "credit_limit") {
+          toast({
+            title: "API credits required",
+            description: "Your Together.ai API key needs credits. Please add credits or use a different API key.",
+            variant: "destructive",
+            duration: 6000,
+          })
+          setIsLoading(false)
+          return
+        }
+
+        throw new Error(errorData.error || "Failed to generate comic")
+      }
+
+      const result = await response.json()
+
+      const comicData = {
+        prompt,
+        style,
+        imageUrl: result.imageUrl,
+        characterUploads,
+      }
+
+      sessionStorage.setItem("firstPageData", JSON.stringify(comicData))
+
+      setTimeout(() => {
+        router.push("/editor")
+      }, 1000)
+    } catch (error) {
+      console.error("[v0] Error creating comic:", error)
+      toast({
+        title: "Creation failed",
+        description: error instanceof Error ? error.message : "Failed to create comic. Please try again.",
+        variant: "destructive",
+        duration: 4000,
+      })
+      setIsLoading(false)
+    }
+  }
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const loadingSteps = ["Enhancing prompt...", "Generating scenes...", "Creating your comic..."]
+
+  return (
+    <div className="pt-2">
+      <Button
+        onClick={handleCreate}
+        disabled={isLoading || !prompt.trim()}
+        className="w-full sm:w-auto sm:min-w-40 bg-white hover:bg-neutral-200 text-black px-8 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-3 tracking-tight"
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm font-medium tracking-tight">{loadingSteps[loadingStep]}</span>
+          </>
+        ) : (
+          <>
+            Generate
+            <ArrowRight className="w-4 h-4" />
+          </>
+        )}
+      </Button>
+    </div>
+  )
+}
