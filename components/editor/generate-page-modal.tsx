@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react"
 import { Upload, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
+import { validateFileForUpload, generateFilePreview } from "@/lib/file-utils"
 
 const COMIC_STYLES = [
   { id: "american-modern", name: "American Modern" },
@@ -47,6 +49,7 @@ export function GeneratePageModal({
   const [isGenerating, setIsGenerating] = useState(false)
   const [isContinuing, setIsContinuing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
 
   const selectedStyle = previousPageStyle || "noir"
 
@@ -66,25 +69,43 @@ export function GeneratePageModal({
     }
   }, [previousCharacters])
 
-  const handleFiles = (newFiles: FileList | null) => {
+  const handleFiles = async (newFiles: FileList | null) => {
     if (!newFiles) return
 
-    const validFiles = Array.from(newFiles).filter((file) => file.type.startsWith("image/"))
-    const totalFiles = [...uploadedFiles, ...validFiles].slice(0, 2) // Max 2 files
+    const filesArray = Array.from(newFiles)
 
+    // Validate files (including WebP rejection)
+    const validationResults = filesArray.map(file => ({
+      file,
+      validation: validateFileForUpload(file, true)
+    }))
+
+    // Show errors for invalid files
+    validationResults.forEach(({ validation }) => {
+      if (!validation.valid && validation.error) {
+        toast({
+          title: "Invalid file",
+          description: validation.error,
+          variant: "destructive",
+          duration: 4000,
+        })
+      }
+    })
+
+    const validFiles = validationResults
+      .filter(({ validation }) => validation.valid)
+      .map(({ file }) => file)
+
+    if (validFiles.length === 0) return
+
+    const totalFiles = [...uploadedFiles, ...validFiles].slice(0, 2) // Max 2 files
     setUploadedFiles(totalFiles)
 
-    const newPreviews: string[] = []
-    totalFiles.forEach((file, index) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        newPreviews[index] = e.target?.result as string
-        if (newPreviews.filter(Boolean).length === totalFiles.length) {
-          setPreviews([...newPreviews])
-        }
-      }
-      reader.readAsDataURL(file)
-    })
+    // Generate previews for all files
+    const newPreviews = await Promise.all(
+      totalFiles.map((file) => generateFilePreview(file))
+    )
+    setPreviews(newPreviews)
   }
 
   const removeFile = (index: number) => {
@@ -257,7 +278,7 @@ export function GeneratePageModal({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/jpg"
                   multiple
                   className="hidden"
                   onChange={(e) => handleFiles(e.target.files)}

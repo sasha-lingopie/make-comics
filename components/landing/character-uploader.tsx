@@ -4,19 +4,27 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { X, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
+import { validateFileForUpload, generateFilePreview } from "@/lib/file-utils"
 
 export function CharacterUploader() {
   const [preview, setPreview] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
 
-  const handleFile = (file: File) => {
-    if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setPreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+  const handleFile = async (file: File) => {
+    const validation = validateFileForUpload(file, true)
+    if (validation.valid) {
+      const previewUrl = await generateFilePreview(file)
+      setPreview(previewUrl)
+    } else if (validation.error) {
+      toast({
+        title: "Invalid file",
+        description: validation.error,
+        variant: "destructive",
+        duration: 4000,
+      })
     }
   }
 
@@ -24,7 +32,7 @@ export function CharacterUploader() {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files[0]
-    handleFile(file)
+    if (file) handleFile(file)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -77,7 +85,7 @@ export function CharacterUploader() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/jpg"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0]

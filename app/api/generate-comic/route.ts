@@ -1,8 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server";
 import Together from "together-ai";
-import { updatePage, createStory, createPage, getNextPageNumber } from "@/lib/db-actions";
+import {
+  updatePage,
+  createStory,
+  createPage,
+  getNextPageNumber,
+} from "@/lib/db-actions";
 
-const FIXED_DIMENSIONS = { width: 864, height: 1184 };
+const NEW_MODEL = false;
+const IMAGE_MODEL = NEW_MODEL
+  ? "google/gemini-3-pro-image"
+  : "google/flash-image-2.5";
+const FIXED_DIMENSIONS = NEW_MODEL
+  ? { width: 896, height: 1200 }
+  : { width: 864, height: 1184 };
 
 async function analyzeCharacterImage(
   imageBase64: string,
@@ -101,7 +112,11 @@ export async function POST(request: NextRequest) {
       previousContext = "",
     } = await request.json();
 
-    console.log("Received request:", { storyId, prompt: prompt?.substring(0, 50), characterImagesCount: characterImages.length });
+    console.log("Received request:", {
+      storyId,
+      prompt: prompt?.substring(0, 50),
+      characterImagesCount: characterImages.length,
+    });
 
     if (!prompt || !apiKey) {
       return NextResponse.json(
@@ -157,24 +172,36 @@ export async function POST(request: NextRequest) {
     if (characterImages.length > 0) {
       if (characterImages.length === 1) {
         characterSection = `
-CRITICAL INSTRUCTIONS FOR CHARACTER REFERENCE:
-- Use the uploaded character image as reference for the main character
-- This character must appear in ALL 5 panels as the protagonist
-- Maintain exact appearance from the reference image
-- Draw them in ${style} comic art style but preserve their features, clothing, and pose from the image`;
+CRITICAL FACE CONSISTENCY INSTRUCTIONS:
+- REFERENCE CHARACTER: Use the uploaded image as EXACT reference for the protagonist's face and appearance
+- FACE MATCHING: The character's face must be IDENTICAL to the reference image - same eyes, nose, mouth, hair, facial structure
+- APPEARANCE PRESERVATION: Maintain exact skin tone, hair color/style, eye color, and distinctive facial features
+- CHARACTER CONSISTENCY: This exact same character must appear in ALL 5 panels with the same face throughout
+- STYLE APPLICATION: Apply ${style} comic art style to the body/pose/action but KEEP THE FACE EXACTLY AS IN THE REFERENCE IMAGE
+- NO VARIATION: Do not alter, modify, or change the character's face in any way from the reference`;
       } else if (characterImages.length === 2) {
         characterSection = `
-CRITICAL INSTRUCTIONS FOR CHARACTER REFERENCES:
-- Use both uploaded character images as references for the two main characters
-- CHARACTER 1 (first image) and CHARACTER 2 (second image) must appear together in at least 4 of the 5 panels
-- Keep them VISUALLY DISTINCT - preserve exact appearances from their respective reference images
-- Draw both in ${style} comic art style but maintain their individual features and clothing
-- They are the two protagonists interacting with each other throughout the story`;
+CRITICAL DUAL CHARACTER FACE CONSISTENCY INSTRUCTIONS:
+- CHARACTER 1 REFERENCE: Use the FIRST uploaded image as EXACT reference for Character 1's face and appearance
+- CHARACTER 2 REFERENCE: Use the SECOND uploaded image as EXACT reference for Character 2's face and appearance
+- FACE MATCHING: Both characters' faces must be IDENTICAL to their respective reference images
+- VISUAL DISTINCTION: Keep both characters clearly visually distinct with their unique faces, hair, and features
+- CONSISTENT PRESENCE: Both characters must appear together in at least 4 of the 5 panels
+- STYLE APPLICATION: Apply ${style} comic art style while maintaining EXACT facial features from references
+- NO FACE VARIATION: Never alter or modify either character's face from their reference images`;
       }
     }
 
     const systemPrompt = `Professional comic book page illustration.
 ${continuationContext}
+${characterSection}
+
+CHARACTER CONSISTENCY RULES (HIGHEST PRIORITY):
+- If reference images are provided, the characters' FACES must be 100% identical to the reference images
+- Never change hair color, eye color, facial structure, or distinctive features
+- Apply comic style to body/pose/action but preserve exact facial appearance
+- Same character must look identical across all panels they appear in
+
 TEXT AND LETTERING (CRITICAL):
 - All text in speech bubbles must be PERFECTLY CLEAR, LEGIBLE, and correctly spelled
 - Use bold clean comic book lettering, large and easy to read
@@ -209,11 +236,11 @@ COMPOSITION:
     let response;
     try {
       response = await client.images.generate({
-        model: "google/flash-image-2.5",
+        model: IMAGE_MODEL,
         prompt: fullPrompt,
         width: dimensions.width,
         height: dimensions.height,
-        n: 1,
+        temperature: 0.1, // Lower temperature for more consistent face matching
         reference_images:
           characterImages.length > 0 ? characterImages : undefined,
       });
@@ -274,7 +301,13 @@ COMPOSITION:
 
     const responseData = storyId
       ? { imageUrl, pageId: page.id, pageNumber: page.pageNumber }
-      : { imageUrl, storyId: story!.id, storySlug: story!.slug, pageId: page.id, pageNumber: page.pageNumber };
+      : {
+          imageUrl,
+          storyId: story!.id,
+          storySlug: story!.slug,
+          pageId: page.id,
+          pageNumber: page.pageNumber,
+        };
 
     return NextResponse.json(responseData);
   } catch (error) {
