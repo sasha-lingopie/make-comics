@@ -132,7 +132,9 @@ export function StoryInput({
                   ))}
                   {characterFiles.length < 2 && (
                     <button
-                      onClick={() => !isLoading && fileInputRef.current?.click()}
+                      onClick={() =>
+                        !isLoading && fileInputRef.current?.click()
+                      }
                       disabled={isLoading}
                       className="w-8 h-8 rounded-md border border-dashed border-border/50 hover:border-indigo/50 flex items-center justify-center text-muted-foreground hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-border/50 disabled:hover:text-muted-foreground"
                     >
@@ -181,7 +183,7 @@ export function StoryInput({
                 </button>
 
                 {showStyleDropdown && (
-                  <div className="absolute left-0 sm:right-0 sm:left-auto bottom-full mb-2 w-40 glass-panel rounded-lg p-1 z-70 shadow-2xl border border-border/50">
+                  <div className="absolute left-0 sm:right-0 sm:left-auto bottom-full mb-2 w-40 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
                     {COMIC_STYLES.map((styleOption) => (
                       <button
                         key={styleOption.id}
