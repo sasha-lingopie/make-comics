@@ -8,6 +8,14 @@ import { useToast } from "@/hooks/use-toast"
 import { validateFileForUpload, generateFilePreview } from "@/lib/file-utils"
 import { COMIC_STYLES } from "@/lib/constants"
 
+interface PageReference {
+  pageNumber: number
+  characterImages: string[]
+  prompt: string
+  imageUrl?: string
+  style: string
+}
+
 interface GeneratePageModalProps {
   isOpen: boolean
   onClose: () => void
@@ -15,14 +23,11 @@ interface GeneratePageModalProps {
     prompt: string
     style: string
     characterFiles?: File[]
-    characterUrls?: string[] // For reusing existing characters
+    characterUrls?: string[]
     isContinuation?: boolean
   }) => void
   pageNumber: number
-  previousCharacters?: File[]
-  previousPagePrompt?: string
-  previousPageStyle?: string
-  existingCharacterImages?: string[] // Character images from previous pages
+  allPages: PageReference[]
 }
 
 export function GeneratePageModal({
@@ -30,55 +35,43 @@ export function GeneratePageModal({
   onClose,
   onGenerate,
   pageNumber,
-  previousCharacters,
-  previousPagePrompt,
-  previousPageStyle,
-  existingCharacterImages = [],
+  allPages,
 }: GeneratePageModalProps) {
   const [prompt, setPrompt] = useState("")
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>(previousCharacters || [])
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [selectedExistingCharacters, setSelectedExistingCharacters] = useState<string[]>([])
+  const [referencePageNumber, setReferencePageNumber] = useState<number>(allPages.length > 0 ? allPages.length : 1)
+  const [pageImage, setPageImage] = useState<string | null>(null)
   const [previews, setPreviews] = useState<string[]>([])
   const [showPreview, setShowPreview] = useState<number | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [isContinuing, setIsContinuing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  const selectedStyleId = previousPageStyle || "noir"
-  const selectedStyle = useMemo(
-    () => COMIC_STYLES.find((s) => s.id === selectedStyleId)?.name || "Noir",
-    [selectedStyleId]
-  )
+  const referencePage = allPages.find((p) => p.pageNumber === referencePageNumber) || null
+  const referenceStyleId = referencePage?.style || "noir"
+  const selectedStyleName = COMIC_STYLES.find((s) => s.id === referenceStyleId)?.name || "Noir"
+  const selectedStyle = useMemo(() => selectedStyleName, [referenceStyleId])
 
   useEffect(() => {
-    if (previousCharacters && previousCharacters.length > 0) {
-      const newPreviews: string[] = []
-      previousCharacters.forEach((file, index) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          newPreviews[index] = e.target?.result as string
-          if (newPreviews.filter(Boolean).length === previousCharacters.length) {
-            setPreviews([...newPreviews])
-          }
-        }
-        reader.readAsDataURL(file)
-      })
+    if (isOpen && referencePage) {
+      setSelectedExistingCharacters(referencePage.characterImages)
+      setPageImage(referencePage.imageUrl || null)
+    } else if (isOpen && !referencePage) {
+      setPageImage(null)
     }
-  }, [previousCharacters])
+  }, [isOpen, referencePage])
 
   const handleFiles = async (newFiles: FileList | null) => {
     if (!newFiles) return
 
     const filesArray = Array.from(newFiles)
 
-    // Validate files (including WebP rejection)
     const validationResults = filesArray.map(file => ({
       file,
       validation: validateFileForUpload(file, true)
     }))
 
-    // Show errors for invalid files
     validationResults.forEach(({ validation }) => {
       if (!validation.valid && validation.error) {
         toast({
@@ -96,10 +89,9 @@ export function GeneratePageModal({
 
     if (validFiles.length === 0) return
 
-    const totalFiles = [...uploadedFiles, ...validFiles].slice(0, 2) // Max 2 files
+    const totalFiles = [...uploadedFiles, ...validFiles].slice(0, 2)
     setUploadedFiles(totalFiles)
 
-    // Generate previews for all files
     const newPreviews = await Promise.all(
       totalFiles.map((file) => generateFilePreview(file))
     )
@@ -125,34 +117,54 @@ export function GeneratePageModal({
     )
   }
 
-  const handleGenerate = () => {
+  const togglePageImage = () => {
+    setPageImage(prev => prev === null && referencePage?.imageUrl ? referencePage.imageUrl : null)
+  }
+
+  const handleGenerate = async () => {
     if (!prompt.trim()) return
     setIsGenerating(true)
+
+    const fileDataUrls = await Promise.all(
+      uploadedFiles.map((file, index) => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            const base64 = e.target?.result as string
+            const [header, base64Data] = base64.split(",")
+            const base64String = base64Data.replace(/_/g, "/")
+            resolve(`data:image/jpeg;base64,${base64String}`)
+          }
+          reader.readAsDataURL(file)
+        })
+      })
+    )
+
+    const allCharacterUrls: string[] = [
+      ...selectedExistingCharacters,
+      ...fileDataUrls,
+      ...(pageImage ? [pageImage] : []),
+    ]
+
     onGenerate({
       prompt,
       style: selectedStyle,
       characterFiles: uploadedFiles.length > 0 ? uploadedFiles : undefined,
-      characterUrls: selectedExistingCharacters.length > 0 ? selectedExistingCharacters : undefined,
+      characterUrls: allCharacterUrls,
       isContinuation: false,
-    })
-  }
-
-  const handleContinue = () => {
-    setIsContinuing(true)
-    onGenerate({
-      prompt: prompt.trim() || `Continue the story from where it left off. Previous context: ${previousPagePrompt}`,
-      style: selectedStyle,
-      characterFiles: uploadedFiles.length > 0 ? uploadedFiles : undefined,
-      characterUrls: selectedExistingCharacters.length > 0 ? selectedExistingCharacters : undefined,
-      isContinuation: true,
     })
   }
 
   useEffect(() => {
     if (!isOpen) {
       setIsGenerating(false)
-      setIsContinuing(false)
       setPrompt("")
+      setUploadedFiles([])
+      setSelectedExistingCharacters([])
+      setPageImage(null)
+      if (allPages.length > 0) {
+        setReferencePageNumber(allPages.length)
+      }
     }
   }, [isOpen])
 
@@ -165,6 +177,26 @@ export function GeneratePageModal({
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
+            {/* Reference Page Selection */}
+            {allPages.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground uppercase tracking-[0.02em] font-medium">
+                  Reference Page
+                </label>
+                <select
+                  value={referencePageNumber}
+                  onChange={(e) => setReferencePageNumber(Number(e.target.value))}
+                  className="w-full bg-background/80 border border-border/50 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo/50"
+                >
+                  {allPages.map((page) => (
+                    <option key={page.pageNumber} value={page.pageNumber}>
+                      Page {page.pageNumber}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="relative glass-panel p-1 rounded-xl group focus-within:border-indigo/30 transition-colors">
               <div className="bg-background/80 rounded-lg p-4 border border-border/50">
                 <div className="flex justify-between items-center mb-3">
@@ -172,26 +204,55 @@ export function GeneratePageModal({
                     Prompt
                   </label>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span className="capitalize">{selectedStyle}</span>
+                    <span className="capitalize">{selectedStyleName}</span>
                   </div>
                 </div>
 
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Continue the story... Describe what happens next in the comic."
+                  placeholder="Continue the story... Describe what happens next in your comic."
                   className="w-full bg-transparent border-none text-sm text-white placeholder-muted-foreground/50 focus:ring-0 focus:outline-none resize-none h-20 leading-relaxed tracking-tight"
                 />
 
                 <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
-                  {/* Existing Characters */}
-                  {existingCharacterImages.length > 0 && (
+                  {/* Reference Page Image Toggle */}
+                  {referencePage && referencePage.imageUrl && (
                     <div className="space-y-2">
                       <div className="text-xs text-muted-foreground uppercase tracking-[0.02em] font-medium">
-                        Reuse Characters from Story
+                        Include Page Image
+                      </div>
+                      <button
+                        onClick={togglePageImage}
+                        className={`w-8 h-8 rounded-md overflow-hidden border-2 transition-all ${
+                          pageImage
+                            ? "border-indigo shadow-sm shadow-indigo/20"
+                            : "border-border/50 hover:border-indigo/50"
+                        }`}
+                      >
+                        {pageImage ? (
+                          <img
+                            src={pageImage}
+                            alt="Page image"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground flex items-center justify-center h-full">
+                            Page
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Existing Characters */}
+                  {referencePage && referencePage.characterImages.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs text-muted-foreground uppercase tracking-[0.02em] font-medium">
+                        Reuse Characters
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        {existingCharacterImages.map((characterUrl, index) => {
+                        {referencePage.characterImages.map((characterUrl) => {
                           const isSelected = selectedExistingCharacters.includes(characterUrl)
                           return (
                             <button
@@ -205,7 +266,7 @@ export function GeneratePageModal({
                             >
                               <img
                                 src={characterUrl}
-                                alt={`Existing character ${index + 1}`}
+                                alt="Existing character"
                                 className="w-full h-full object-cover"
                               />
                               {isSelected && (
@@ -284,37 +345,20 @@ export function GeneratePageModal({
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <Button
-                onClick={handleContinue}
-                disabled={isGenerating || isContinuing}
-                variant="outline"
-                className="flex-1 gap-2 border-indigo/30 text-indigo hover:bg-indigo/10 hover:text-indigo tracking-tight bg-transparent"
-              >
-                {isContinuing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Continuing...</span>
-                  </>
-                ) : (
-                  `Continue from Page ${pageNumber - 1}`
-                )}
-              </Button>
-              <Button
-                onClick={handleGenerate}
-                disabled={!prompt.trim() || isGenerating || isContinuing}
-                className="flex-1 gap-2 bg-white hover:bg-neutral-200 text-black tracking-tight"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  `Generate Page ${pageNumber}`
-                )}
-              </Button>
-            </div>
+            <Button
+              onClick={handleGenerate}
+              disabled={!prompt.trim() || isGenerating}
+              className="w-full gap-2 bg-white hover:bg-neutral-200 text-black tracking-tight"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                `Generate Page ${pageNumber}`
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
