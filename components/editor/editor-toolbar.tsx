@@ -6,13 +6,11 @@ import { useRouter } from "next/navigation";
 
 interface EditorToolbarProps {
   title: string;
-  onInfoClick: () => void;
   onContinueStory?: () => void;
 }
 
 export function EditorToolbar({
   title,
-  onInfoClick,
   onContinueStory,
 }: EditorToolbarProps) {
   const router = useRouter();
@@ -34,41 +32,24 @@ export function EditorToolbar({
         </h1>
       </div>
 
-      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hover:bg-secondary text-muted-foreground hover:text-white h-8 w-8 sm:h-9 sm:w-9"
-          onClick={onInfoClick}
-        >
-          <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </Button>
+       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+         <Button
+           variant="ghost"
+           className="hover:bg-secondary text-muted-foreground hover:text-white gap-1.5 sm:gap-2 text-xs h-8 sm:h-9 px-2 sm:px-3 hidden md:flex"
+         >
+           <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+           <span>Download PDF</span>
+         </Button>
 
-        <Button
-          variant="ghost"
-          className="hover:bg-secondary text-muted-foreground hover:text-white gap-1.5 sm:gap-2 text-xs h-8 sm:h-9 px-2 sm:px-3 hidden md:flex"
-        >
-          <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>Redraw</span>
-        </Button>
-
-        <Button
-          variant="ghost"
-          className="hover:bg-secondary text-muted-foreground hover:text-white gap-1.5 sm:gap-2 text-xs h-8 sm:h-9 px-2 sm:px-3 hidden md:flex"
-        >
-          <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>Download PDF</span>
-        </Button>
-
-        <Button
-          onClick={onContinueStory}
-          className="gap-1.5 sm:gap-2 text-xs bg-white hover:bg-neutral-200 text-black h-8 sm:h-9 px-3 sm:px-4"
-        >
-          <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span className="hidden sm:inline">Continue story</span>
-          <span className="sm:hidden">Add</span>
-        </Button>
-      </div>
+         <Button
+           onClick={onContinueStory}
+           className="gap-1.5 sm:gap-2 text-xs bg-white hover:bg-neutral-200 text-black h-8 sm:h-9 px-3 sm:px-4"
+         >
+           <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+           <span className="hidden sm:inline">Continue story</span>
+           <span className="sm:hidden">Add</span>
+         </Button>
+       </div>
     </header>
   );
 }

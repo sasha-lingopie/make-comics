@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Download } from "lucide-react";
+import { RefreshCw, Download, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PageData {
@@ -14,9 +14,12 @@ interface PageData {
 
 interface ComicCanvasProps {
   page: PageData;
+  onInfoClick?: () => void;
+  onNextPage?: () => void;
+  onPrevPage?: () => void;
 }
 
-export function ComicCanvas({ page }: ComicCanvasProps) {
+export function ComicCanvas({ page, onInfoClick, onNextPage, onPrevPage }: ComicCanvasProps) {
   return (
     <main className="flex-1 overflow-auto p-4 md:p-8 flex items-start justify-center relative">
       {/* Dot grid background */}
@@ -32,7 +35,20 @@ export function ComicCanvas({ page }: ComicCanvasProps) {
               <img
                 src={page.image || "/placeholder.svg"}
                 alt={`Page ${page.id}`}
-                className="w-full h-full object-cover opacity-90 grayscale-10 contrast-110"
+                className="w-full h-full object-cover opacity-90 grayscale-10 contrast-110 cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const clickX = e.clientX - rect.left;
+                  const imageWidth = rect.width;
+
+                  if (clickX > imageWidth / 2) {
+                    // Right half - next page
+                    onNextPage?.();
+                  } else {
+                    // Left half - previous page
+                    onPrevPage?.();
+                  }
+                }}
               />
             </div>
             <div className="scan-line opacity-30" />
@@ -42,6 +58,28 @@ export function ComicCanvas({ page }: ComicCanvasProps) {
               Page {page.id}
             </div>
           </div>
+        </div>
+
+        {/* Action buttons below the page image */}
+        <div className="flex items-center justify-center gap-2 mt-4">
+          {onInfoClick && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:bg-secondary text-muted-foreground hover:text-white h-9 w-9"
+              onClick={onInfoClick}
+            >
+              <Info className="w-4 h-4" />
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            className="hover:bg-secondary text-muted-foreground hover:text-white gap-2 text-xs h-9 px-3"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Redraw</span>
+          </Button>
         </div>
 
         <div className="flex flex-col items-center gap-3 mt-4">

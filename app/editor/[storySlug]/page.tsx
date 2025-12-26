@@ -128,13 +128,9 @@ export default function StoryEditorPage() {
     if (wasGenerating) {
       setShowGenerateModal(true);
     }
-
-    toast({
-      title: "API key saved",
-      description: "Your Together API key has been saved successfully",
-      duration: 3000,
-    });
   };
+
+
 
   const handleGeneratePage = async (data: {
     prompt: string;
@@ -216,7 +212,6 @@ export default function StoryEditorPage() {
     <div className="h-screen flex flex-col bg-background">
       <EditorToolbar
         title={story.title}
-        onInfoClick={() => setShowInfoSheet(true)}
         onContinueStory={handleAddPage}
       />
 
@@ -229,7 +224,12 @@ export default function StoryEditorPage() {
           loadingPageId={loadingPageId}
           onApiKeyClick={handleApiKeyClick}
         />
-        <ComicCanvas page={pages[currentPage]} />
+        <ComicCanvas
+          page={pages[currentPage]}
+          onInfoClick={() => setShowInfoSheet(true)}
+          onNextPage={() => setCurrentPage((prev) => (prev < pages.length - 1 ? prev + 1 : prev))}
+          onPrevPage={() => setCurrentPage((prev) => (prev > 0 ? prev - 1 : prev))}
+        />
       </div>
 
       <ApiKeyModal
