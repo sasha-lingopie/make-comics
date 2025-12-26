@@ -22,8 +22,10 @@ interface PageData {
 
 interface StoryData {
   id: string;
+  slug: string;
   title: string;
   description?: string | null;
+  style: string;
   userId?: string | null;
 }
 
@@ -134,10 +136,8 @@ export default function StoryEditorPage() {
 
   const handleGeneratePage = async (data: {
     prompt: string;
-    style: string;
     characterFiles?: File[];
     characterUrls?: string[];
-    isContinuation?: boolean;
   }) => {
     try {
       const apiKey = localStorage.getItem("together_api_key");
@@ -146,23 +146,22 @@ export default function StoryEditorPage() {
         return;
       }
 
-      const response = await fetch("/api/generate-comic", {
+      const response = await fetch("/api/add-page", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-api-key": apiKey,
         },
         body: JSON.stringify({
-          storyId: story?.id,
+          storyId: story?.slug,
           prompt: data.prompt,
-          apiKey,
-          style: data.style,
           characterImages: data.characterUrls || [],
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate image");
+        throw new Error(errorData.error || "Failed to generate page");
       }
 
       const result = await response.json();
@@ -175,7 +174,7 @@ export default function StoryEditorPage() {
           image: result.imageUrl,
           prompt: data.prompt,
           characterUploads: data.characterUrls || [],
-          style: data.style,
+          style: story?.style || "noir",
         },
       ]);
       setCurrentPage(pages.length);
@@ -183,7 +182,7 @@ export default function StoryEditorPage() {
     } catch (error) {
       console.error("Error generating page:", error);
       toast({
-        title: "Generation failed",
+        title: "Failed to generate page",
         description:
           error instanceof Error ? error.message : "Failed to generate page",
         variant: "destructive",
@@ -242,13 +241,6 @@ export default function StoryEditorPage() {
         onClose={() => setShowGenerateModal(false)}
         onGenerate={handleGeneratePage}
         pageNumber={pages.length + 1}
-        allPages={pages.map((page, index) => ({
-          pageNumber: page.id,
-          characterImages: page.characterUploads || [],
-          prompt: page.prompt,
-          imageUrl: page.image,
-          style: page.style,
-        }))}
       />
       <PageInfoSheet
         isOpen={showInfoSheet}

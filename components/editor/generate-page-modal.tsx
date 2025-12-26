@@ -13,26 +13,15 @@ import { useToast } from "@/hooks/use-toast";
 import { validateFileForUpload, generateFilePreview } from "@/lib/file-utils";
 import { COMIC_STYLES } from "@/lib/constants";
 
-interface PageReference {
-  pageNumber: number;
-  characterImages: string[];
-  prompt: string;
-  imageUrl?: string;
-  style: string;
-}
-
 interface GeneratePageModalProps {
   isOpen: boolean;
   onClose: () => void;
   onGenerate: (data: {
     prompt: string;
-    style: string;
     characterFiles?: File[];
     characterUrls?: string[];
-    isContinuation?: boolean;
   }) => void;
   pageNumber: number;
-  allPages: PageReference[];
 }
 
 export function GeneratePageModal({
@@ -40,38 +29,25 @@ export function GeneratePageModal({
   onClose,
   onGenerate,
   pageNumber,
-  allPages,
 }: GeneratePageModalProps) {
   const [prompt, setPrompt] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [selectedExistingCharacters, setSelectedExistingCharacters] = useState<
-    string[]
-  >([]);
-  const [referencePageNumber, setReferencePageNumber] = useState<number>(
-    allPages.length > 0 ? allPages.length : 1
-  );
-  const [pageImage, setPageImage] = useState<string | null>(null);
   const [previews, setPreviews] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const referencePage =
-    allPages.find((p) => p.pageNumber === referencePageNumber) || null;
-  const referenceStyleId = referencePage?.style || "noir";
-  const selectedStyleName =
-    COMIC_STYLES.find((s) => s.id === referenceStyleId)?.name || "Noir";
-  const selectedStyle = useMemo(() => selectedStyleName, [referenceStyleId]);
-
+  // Reset form when modal opens
   useEffect(() => {
-    if (isOpen && referencePage) {
-      setSelectedExistingCharacters(referencePage.characterImages);
-      setPageImage(referencePage.imageUrl || null);
-    } else if (isOpen && !referencePage) {
-      setPageImage(null);
+    if (isOpen) {
+      setPrompt("");
+      setUploadedFiles([]);
+      setPreviews([]);
+      setShowPreview(null);
+      setIsGenerating(false);
     }
-  }, [isOpen, referencePage]);
+  }, [isOpen]);
 
   const handleFiles = async (newFiles: FileList | null) => {
     if (!newFiles) return;
@@ -120,26 +96,12 @@ export function GeneratePageModal({
     }
   };
 
-  const toggleExistingCharacter = (characterUrl: string) => {
-    setSelectedExistingCharacters((prev) =>
-      prev.includes(characterUrl)
-        ? prev.filter((url) => url !== characterUrl)
-        : [...prev, characterUrl]
-    );
-  };
-
-  const togglePageImage = () => {
-    setPageImage((prev) =>
-      prev === null && referencePage?.imageUrl ? referencePage.imageUrl : null
-    );
-  };
-
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
 
     const fileDataUrls = await Promise.all(
-      uploadedFiles.map((file, index) => {
+      uploadedFiles.map((file) => {
         return new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => {
@@ -153,33 +115,14 @@ export function GeneratePageModal({
       })
     );
 
-    const allCharacterUrls: string[] = [
-      ...selectedExistingCharacters,
-      ...fileDataUrls,
-      ...(pageImage ? [pageImage] : []),
-    ];
-
     onGenerate({
       prompt,
-      style: selectedStyle,
       characterFiles: uploadedFiles.length > 0 ? uploadedFiles : undefined,
-      characterUrls: allCharacterUrls,
-      isContinuation: false,
+      characterUrls: fileDataUrls,
     });
   };
 
-  useEffect(() => {
-    if (!isOpen) {
-      setIsGenerating(false);
-      setPrompt("");
-      setUploadedFiles([]);
-      setSelectedExistingCharacters([]);
-      setPageImage(null);
-      if (allPages.length > 0) {
-        setReferencePageNumber(allPages.length);
-      }
-    }
-  }, [isOpen]);
+
 
   return (
     <>
@@ -192,93 +135,28 @@ export function GeneratePageModal({
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
-            {/* Reference Page Selection */}
-            {allPages.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-xs text-muted-foreground uppercase tracking-[0.02em] font-medium">
-                  Reference Page
-                </label>
-                <select
-                  value={referencePageNumber}
-                  onChange={(e) =>
-                    setReferencePageNumber(Number(e.target.value))
-                  }
-                  className="w-full bg-background/80 border border-border/50 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo/50"
-                >
-                  {allPages.map((page) => (
-                    <option key={page.pageNumber} value={page.pageNumber}>
-                      Page {page.pageNumber}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
+            {/* Prompt Input */}
             <div className="relative glass-panel p-1 rounded-xl group focus-within:border-indigo/30 transition-colors">
               <div className="bg-background/80 rounded-lg p-4 border border-border/50">
                 <div className="flex justify-between items-center mb-3">
                   <label className="text-[10px] uppercase text-muted-foreground tracking-[0.02em] font-medium">
                     Prompt
                   </label>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span className="capitalize">{selectedStyleName}</span>
-                  </div>
                 </div>
 
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Continue the story... Describe what happens next in your comic."
+                  placeholder="Continue the story... Describe what happens next."
+                  disabled={isGenerating}
                   className="w-full bg-transparent border-none text-sm text-white placeholder-muted-foreground/50 focus:ring-0 focus:outline-none resize-none h-20 leading-relaxed tracking-tight"
                 />
 
                 <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
-                  {/* Existing Characters */}
-                  {referencePage &&
-                    referencePage.characterImages.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="text-xs text-muted-foreground uppercase tracking-[0.02em] font-medium">
-                          Reuse Characters
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {referencePage.characterImages.map((characterUrl) => {
-                            const isSelected =
-                              selectedExistingCharacters.includes(characterUrl);
-                            return (
-                              <button
-                                key={characterUrl}
-                                onClick={() =>
-                                  toggleExistingCharacter(characterUrl)
-                                }
-                                className={`relative w-8 h-8 rounded-md overflow-hidden border-2 transition-all ${
-                                  isSelected
-                                    ? "border-indigo shadow-sm shadow-indigo/20"
-                                    : "border-border/50 hover:border-indigo/50"
-                                }`}
-                              >
-                                <img
-                                  src={characterUrl}
-                                  alt="Existing character"
-                                  className="w-full h-full object-cover"
-                                />
-                                {isSelected && (
-                                  <div className="absolute inset-0 bg-indigo/20 flex items-center justify-center">
-                                    <div className="w-3 h-3 bg-indigo rounded-full flex items-center justify-center">
-                                      <div className="w-1 h-1 bg-white rounded-full" />
-                                    </div>
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* New Character Uploads */}
+                  {/* Character Upload */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {uploadedFiles.length > 0 ? (
+                      {previews.length > 0 ? (
                         <div className="flex items-center gap-2">
                           {previews.map((preview, index) => (
                             <div key={index} className="relative group/thumb">
@@ -294,10 +172,11 @@ export function GeneratePageModal({
                               </button>
                               <button
                                 onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeFile(index);
+                                  e.stopPropagation()
+                                  removeFile(index)
                                 }}
-                                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                                disabled={isGenerating}
+                                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity disabled:opacity-50"
                               >
                                 <X className="w-2.5 h-2.5 text-white" />
                               </button>
@@ -305,8 +184,9 @@ export function GeneratePageModal({
                           ))}
                           {uploadedFiles.length < 2 && (
                             <button
-                              onClick={() => fileInputRef.current?.click()}
-                              className="w-8 h-8 rounded-md border border-dashed border-border/50 hover:border-indigo/50 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+                              onClick={() => !isGenerating && fileInputRef.current?.click()}
+                              disabled={isGenerating}
+                              className="w-8 h-8 rounded-md border border-dashed border-border/50 hover:border-indigo/50 flex items-center justify-center text-muted-foreground hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Upload className="w-3.5 h-3.5" />
                             </button>
@@ -314,29 +194,31 @@ export function GeneratePageModal({
                         </div>
                       ) : (
                         <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-white transition-colors"
+                          onClick={() => !isGenerating && fileInputRef.current?.click()}
+                          disabled={isGenerating}
+                          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Upload className="w-3.5 h-3.5" />
-                          <span>Upload New Characters</span>
-                          <span className="text-muted-foreground/50">
-                            (Max 2)
-                          </span>
+                          <span>Add new characters (optional)</span>
                         </button>
                       )}
                     </div>
                   </div>
-                </div>
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFiles(e.target.files)}
-                />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                </div>
               </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground/70">
+              Automatically references previous pages and existing characters from your story.
             </div>
 
             <Button
@@ -347,7 +229,7 @@ export function GeneratePageModal({
               {isGenerating ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Generating...</span>
+                  <span>Generating page...</span>
                 </>
               ) : (
                 `Generate Page ${pageNumber}`
@@ -357,12 +239,13 @@ export function GeneratePageModal({
         </DialogContent>
       </Dialog>
 
+      {/* Character Preview Modal */}
       {showPreview !== null && previews[showPreview] && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
           onClick={() => setShowPreview(null)}
         >
-          <div className="relative max-w-2xl max-h-[80vh] glass-panel p-4 rounded-xl z-[101]">
+          <div className="relative max-w-sm max-h-[80vh] glass-panel p-4 rounded-xl z-[101]">
             <Button
               variant="ghost"
               size="icon"
