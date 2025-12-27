@@ -26,7 +26,7 @@ export function StoryLoader({ text = "Loading story..." }: StoryLoaderProps) {
           key={currentSvgIndex} // Force re-render for smooth transition
           src={`/loader/${loaderSvgs[currentSvgIndex]}`}
           alt="Loading..."
-          className="w-full h-full object-contain animate-pulse transition-all duration-700 ease-in-out transform scale-90 hover:scale-110"
+          className="w-full h-full object-contain animate-pulse transition-all duration-700 ease-in-out transform"
           style={{ filter: 'invert(1)' }}
         />
       </div>

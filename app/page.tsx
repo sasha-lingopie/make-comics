@@ -115,7 +115,7 @@ export default function Home() {
             </div>
 
             <div className="relative">
-              <div className="bg-white w-80 aspect-3/4 p-2 shadow-2xl rounded-sm hover:shadow-indigo/20 hover:shadow-3xl transition-all duration-300 hover:scale-[1.02]">
+              <div className="bg-white w-80 aspect-3/4 p-2 shadow-2xl rounded-sm hover:shadow-indigo/20 hover:shadow-3xl transition-all duration-300">
                 <div className="w-full h-full bg-neutral-900 border-4 border-black overflow-hidden relative">
                   {/* Page transition container */}
                   <div className="relative w-full h-full">

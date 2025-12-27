@@ -82,7 +82,7 @@ export function ComicCanvas({
         </div>
 
         {/* Action buttons below the page image */}
-        <div className="flex items-center justify-center gap-2 mt-4">
+        <div className="hidden md:flex items-center justify-center gap-2 mt-4">
           {onInfoClick && (
             <Button
               variant="ghost"
@@ -123,10 +123,23 @@ export function ComicCanvas({
         </div>
 
         <div className="flex flex-col items-center gap-3 mt-4">
-          {/* <div className="text-xs text-muted-foreground">Page {page.id}</div> */}
+          <div className="text-xs text-muted-foreground md:hidden">
+            Page {pageIndex + 1} of {totalPages}
+          </div>
 
           {/* Mobile action buttons */}
           <div className="flex items-center gap-2 md:hidden">
+            {onInfoClick && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hover:bg-secondary text-muted-foreground hover:text-white h-9 w-9"
+                onClick={onInfoClick}
+              >
+                <Info className="w-4 h-4" />
+              </Button>
+            )}
+
             {isOwner && (
               <Button
                 variant="ghost"

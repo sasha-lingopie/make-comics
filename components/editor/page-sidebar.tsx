@@ -33,7 +33,7 @@ export function PageSidebar({
   isOwner = true,
 }: PageSidebarProps) {
   return (
-    <aside className="w-20 md:w-24 border-r border-border/50 bg-background/50 flex flex-col items-center py-4 gap-2 justify-between">
+    <aside className="hidden md:flex md:flex-col md:items-center w-24 border-r border-border/50 bg-background/50 py-4 gap-2 justify-between">
       {/* Top section: page thumbnails */}
       <div className="flex flex-col items-center gap-3">
         {pages.map((page, index) => (
@@ -84,7 +84,7 @@ export function PageSidebar({
             onClick={onAddPage}
             className="w-16 h-16 rounded-lg border-2 border-dashed border-border/50 hover:border-indigo/50 bg-background/50 hover:bg-background/80 transition-all group flex items-center justify-center"
           >
-            <Plus className="w-6 h-6 text-muted-foreground group-hover:text-indigo transition-transform group-hover:scale-110" />
+            <Plus className="w-6 h-6 text-muted-foreground group-hover:text-indigo transition-transform" />
           </button>
         )}
       </div>
