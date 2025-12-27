@@ -55,6 +55,7 @@ export function StoryEditorClient() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [pageToDelete, setPageToDelete] = useState<number | null>(null);
+  const [showRedrawDialog, setShowRedrawDialog] = useState(false);
   const [loadingPageId, setLoadingPageId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [existingCharacterImages, setExistingCharacterImages] = useState<
@@ -163,11 +164,16 @@ export function StoryEditorClient() {
     setShowGenerateModal(true);
   };
 
-  const handleRedrawPage = async () => {
+  const handleRedrawPage = () => {
     if (!apiKey) {
       setShowApiModal(true);
       return;
     }
+    setShowRedrawDialog(true);
+  };
+
+  const confirmRedrawPage = async () => {
+    setShowRedrawDialog(false);
 
     const currentPageData = pages[currentPage];
     if (!currentPageData) return;
@@ -179,7 +185,7 @@ export function StoryEditorClient() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey,
+          "x-api-key": apiKey!,
         },
         body: JSON.stringify({
           storyId: story?.slug,
@@ -494,6 +500,23 @@ export function StoryEditorClient() {
               className="bg-red-600 hover:bg-red-700"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showRedrawDialog} onOpenChange={setShowRedrawDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Redraw Page</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to redraw page {currentPage + 1}? This will regenerate the image for this page with a fresh result.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRedrawPage}>
+              Redraw
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
