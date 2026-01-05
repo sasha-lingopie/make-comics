@@ -157,7 +157,7 @@ export default function StoriesPage() {
                             </div>
 
                             <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
-                              <h3 className="font-display text-sm text-white leading-tight line-clamp-1 mb-1 group-hover:text-indigo-100 transition-colors duration-300">
+                              <h3 className="font-heading text-sm text-white line-clamp-1 mb-1 group-hover:text-indigo-100 transition-colors duration-300 font-semibold">
                                 {story.title}
                               </h3>
                               <p className="text-[10px] text-white/60 font-mono uppercase tracking-wider group-hover:text-white/80 transition-colors duration-300">

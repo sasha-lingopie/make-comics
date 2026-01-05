@@ -360,7 +360,7 @@ export function ComicCreationForm({
         </div>
       )}
 
-      <div className="pt-2">
+      <div className="pt-4">
         {!isLoaded ? (
           <div className="h-10" />
         ) : isSignedIn ? (

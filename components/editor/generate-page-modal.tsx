@@ -333,13 +333,9 @@ export function GeneratePageModal({
                 <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
                   {/* Character Selection */}
                   <div className="space-y-2">
-                    <label className="text-[10px] uppercase text-muted-foreground tracking-[0.02em] font-medium">
-                      Characters (select up to 2)
-                    </label>
-
                     {/* Existing and new characters list */}
                     {characters.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 pb-2">
                         {characters.map((char, index) => {
                           const isSelected =
                             selectedCharacterIndices.has(index);

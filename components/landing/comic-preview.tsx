@@ -16,7 +16,7 @@ export function ComicPreview({
           <div className="bg-white w-48 aspect-3/4 p-2 shadow-2xl rounded-sm rotate-12">
             <div className="w-full h-full bg-neutral-900 border-2 border-black overflow-hidden">
               <img
-                src="/manga-style-hero-battle-scene.jpg"
+                src="/manga.jpg"
                 alt="Background comic"
                 className="w-full h-full object-cover opacity-60"
               />
@@ -28,7 +28,7 @@ export function ComicPreview({
           <div className="bg-white w-56 aspect-3/4 p-2 shadow-2xl rounded-sm -rotate-6">
             <div className="w-full h-full bg-neutral-900 border-2 border-black overflow-hidden">
               <img
-                src="/american-comic-superhero-flying.jpg"
+                src="/american.jpg"
                 alt="Background comic"
                 className="w-full h-full object-cover opacity-60"
               />
@@ -40,7 +40,7 @@ export function ComicPreview({
           <div className="bg-white w-52 aspect-3/4 p-2 shadow-2xl rounded-sm -rotate-12">
             <div className="w-full h-full bg-neutral-900 border-2 border-black overflow-hidden">
               <img
-                src="/noir-detective-comic-panel-dark.jpg"
+                src="/noir.jpg"
                 alt="Background comic"
                 className="w-full h-full object-cover opacity-60"
               />
@@ -52,7 +52,7 @@ export function ComicPreview({
           <div className="bg-white w-44 aspect-3/4 p-2 shadow-2xl rounded-sm rotate-6">
             <div className="w-full h-full bg-neutral-900 border-4 border-black overflow-hidden relative">
               <img
-                src="/vintage-comic-book-cover-retro.jpg"
+                src="/vintage-superman.jpg"
                 alt="Background comic"
                 className="w-full h-full object-cover opacity-60"
               />
@@ -74,7 +74,7 @@ export function ComicPreview({
                   }`}
                 >
                   <img
-                    src="/american-comic-superhero-flying.jpg"
+                    src="/american.jpg"
                     alt="Comic preview page 1"
                     className="w-full h-full object-cover opacity-80 grayscale-20 contrast-125"
                   />
@@ -96,7 +96,7 @@ export function ComicPreview({
                   }`}
                 >
                   <img
-                    src="/manga-style-hero-battle-scene.jpg"
+                    src="/manga.jpg"
                     alt="Comic preview page 2"
                     className="w-full h-full object-cover opacity-80 grayscale-20 contrast-125"
                   />
@@ -105,7 +105,7 @@ export function ComicPreview({
                     Manga
                   </div>
                   <div className="absolute bottom-8 left-4 right-8 bg-white text-black p-2 text-[10px] font-medium border-2 border-black shadow-[2px_2px_0px_rgba(0,0,0,1)] leading-tight transform -rotate-1">
-                    {'"The battle begins!"'}
+                    {'"Time to save the world!"'}
                   </div>
                 </div>
 
@@ -117,7 +117,7 @@ export function ComicPreview({
                   }`}
                 >
                   <img
-                    src="/comic-book-page-with-superhero-action-scene-noir-s.jpg"
+                    src="/noir.jpg"
                     alt="Comic preview page 3"
                     className="w-full h-full object-cover opacity-80 grayscale-20 contrast-125"
                   />

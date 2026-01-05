@@ -130,7 +130,7 @@ export function EditorToolbar({
           />
         ) : (
           <h1
-            className={`text-sm sm:text-base text-white font-display font-normal tracking-[-0.02em] truncate ${
+            className={`text-base sm:text-xl text-white font-heading font-semibold  truncate ${
               isOwner && onTitleUpdate
                 ? "cursor-pointer hover:text-gray-300"
                 : ""

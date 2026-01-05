@@ -77,15 +77,15 @@ export function Navbar() {
             </SignInButton>
           </SignedOut>
           <SignedIn>
-            {isOnStoriesPage ? (
-              <Link href="/">
-                <button className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 glass-panel glass-panel-hover transition-all text-xs rounded-md cursor-pointer">
-                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="text-muted-foreground text-xs sm:text-sm hidden sm:inline tracking-tight">
-                    Create New
-                  </span>
-                </button>
-              </Link>
+             {isOnStoriesPage ? (
+               <Link href="/">
+                 <button className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-white hover:bg-neutral-200 text-black transition-all text-xs rounded-md cursor-pointer font-medium">
+                   <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                   <span className="text-black text-xs sm:text-sm hidden sm:inline tracking-tight">
+                     Create New
+                   </span>
+                 </button>
+               </Link>
             ) : (
               <Link href="/stories">
                 <button className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 glass-panel glass-panel-hover transition-all text-xs rounded-md cursor-pointer">
