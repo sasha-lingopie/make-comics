@@ -67,6 +67,7 @@ export function StoryEditorClient() {
   const { toast } = useToast();
   const [apiKey, setApiKey] = useApiKey();
 
+
   const handleTitleUpdate = (newTitle: string) => {
     setStory(prev => prev ? { ...prev, title: newTitle } : null);
   };
@@ -166,12 +167,14 @@ export function StoryEditorClient() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pages.length]);
+  }, [pages.length, apiKey]);
+
 
   const handleAddPage = () => {
     if (!isLoaded || !isSignedIn) {
       return;
     }
+    
     if (!apiKey && pages.length >= 1) {
       setShowApiModal(true);
       return;
