@@ -199,6 +199,14 @@ export function ComicCreationForm({
     setIsLoading(true);
     setLoadingStep(0);
 
+    // Progress through loading steps
+    const stepInterval = setInterval(() => {
+      setLoadingStep((prev) => {
+        if (prev < 3) return prev + 1;
+        return prev;
+      });
+    }, 3500);
+
     try {
       // Check credits
       const hasApiKey = !!apiKey;
@@ -218,12 +226,14 @@ export function ComicCreationForm({
             description: "Failed to check credits",
             variant: "destructive",
           });
+          clearInterval(stepInterval);
           setIsLoading(false);
           return;
         }
 
         if (creditsData.creditsRemaining === 0) {
           setShowApiModal(true);
+          clearInterval(stepInterval);
           setIsLoading(false);
           return;
         }
@@ -259,6 +269,7 @@ export function ComicCreationForm({
 
       // Clear the draft since submission was successful
       localStorage.removeItem(PROMPT_STORAGE_KEY);
+      clearInterval(stepInterval);
       // Redirect to the story editor using slug
       router.push(`/story/${result.storySlug}`);
     } catch (error) {
@@ -277,6 +288,7 @@ export function ComicCreationForm({
         variant: "destructive",
         duration: 4000,
       });
+      clearInterval(stepInterval);
       setIsLoading(false);
     }
   };
@@ -300,6 +312,7 @@ export function ComicCreationForm({
     "Enhancing prompt...",
     "Generating scenes...",
     "Creating your comic...",
+    "Finishing up...",
   ];
 
   return (
@@ -410,11 +423,10 @@ export function ComicCreationForm({
                           setStyle(styleOption.id);
                           setShowStyleDropdown(false);
                         }}
-                        className={`w-full text-left px-3 py-2 rounded text-xs transition-colors flex items-center justify-between ${
-                          style === styleOption.id
+                        className={`w-full text-left px-3 py-2 rounded text-xs transition-colors flex items-center justify-between ${style === styleOption.id
                             ? "bg-indigo/10 text-indigo"
                             : "text-muted-foreground hover:bg-white/5 hover:text-white"
-                        }`}
+                          }`}
                       >
                         <span>{styleOption.name}</span>
                         {style === styleOption.id && (
