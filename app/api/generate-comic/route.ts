@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     // Determine which API key to use
     let finalApiKey = apiKey;
     const isUsingFreeTier = !apiKey;
+    const usesOwnApiKey = !!apiKey;
 
     if (isUsingFreeTier) {
       // Use default API key for free tier
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
         description: undefined,
         userId: userId,
         style,
+        usesOwnApiKey,
       });
 
       page = await createPage({

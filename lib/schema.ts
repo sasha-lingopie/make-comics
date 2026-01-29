@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, uuid, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, uuid, jsonb, boolean } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Stories table
@@ -9,6 +9,7 @@ export const stories = pgTable('stories', {
   description: text('description'),
   style: text('style').default('noir').notNull(),
   userId: text('user_id').notNull(),
+  usesOwnApiKey: boolean('uses_own_api_key').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
