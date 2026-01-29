@@ -15,7 +15,10 @@ import {
 import { freeTierRateLimit } from "@/lib/rate-limit";
 import { uploadImageToS3 } from "@/lib/s3-upload";
 import { buildComicPrompt } from "@/lib/prompt";
-import { isContentPolicyViolation, getContentPolicyErrorMessage } from "@/lib/utils";
+import {
+  isContentPolicyViolation,
+  getContentPolicyErrorMessage,
+} from "@/lib/utils";
 
 const NEW_MODEL = false;
 
@@ -34,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return NextResponse.json(
         { error: "Authentication required" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
     if (!storyId || !prompt) {
       return NextResponse.json(
         { error: "Missing required fields: storyId and prompt" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -64,8 +67,6 @@ export async function POST(request: NextRequest) {
     if (story.userId !== userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
-
-
 
     let page;
     let pageNumber;
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
       const storyData = await getStoryWithPagesBySlug(storyId);
       if (storyData) {
         const previousPage = storyData.pages.find(
-          (p) => p.pageNumber === pageNumber - 1
+          (p) => p.pageNumber === pageNumber - 1,
         );
         if (previousPage?.generatedImageUrl) {
           referenceImages.push(previousPage.generatedImageUrl);
@@ -145,7 +146,11 @@ export async function POST(request: NextRequest) {
 
     let response;
     try {
-      console.log("Starting image generation...");
+      console.log("Starting image generation for ...");
+      console.dir({
+        fullPrompt,
+        referenceImages,
+      });
       const startTime = Date.now();
       response = await client.images.generate({
         model: IMAGE_MODEL,
@@ -164,7 +169,11 @@ export async function POST(request: NextRequest) {
 
       // Clean up DB records if generation failed due to content policy
       try {
-        if (error instanceof Error && error.message && error.message.includes("NO_IMAGE")) {
+        if (
+          error instanceof Error &&
+          error.message &&
+          error.message.includes("NO_IMAGE")
+        ) {
           if (isRedraw) {
             // For redraw, we don't delete the page, just don't update it
           } else {
@@ -173,16 +182,23 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (cleanupError) {
-        console.error("Error cleaning up DB on image generation failure:", cleanupError);
+        console.error(
+          "Error cleaning up DB on image generation failure:",
+          cleanupError,
+        );
       }
 
-      if (error instanceof Error && error.message && isContentPolicyViolation(error.message)) {
+      if (
+        error instanceof Error &&
+        error.message &&
+        isContentPolicyViolation(error.message)
+      ) {
         return NextResponse.json(
           {
             error: getContentPolicyErrorMessage(),
             errorType: "content_policy",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -194,7 +210,7 @@ export async function POST(request: NextRequest) {
               error: "Insufficient API credits.",
               errorType: "credit_limit",
             },
-            { status: 402 }
+            { status: 402 },
           );
         }
         return NextResponse.json(
@@ -202,7 +218,7 @@ export async function POST(request: NextRequest) {
             error: error.message || `Failed to generate image: ${status}`,
             errorType: "api_error",
           },
-          { status: status || 500 }
+          { status: status || 500 },
         );
       }
 
@@ -212,14 +228,14 @@ export async function POST(request: NextRequest) {
             error instanceof Error ? error.message : "Unknown error"
           }`,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     if (!response.data || !response.data[0] || !response.data[0].url) {
       return NextResponse.json(
         { error: "No image URL in response" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -235,7 +251,10 @@ export async function POST(request: NextRequest) {
       try {
         await freeTierRateLimit.limit(userId);
       } catch (rateLimitError) {
-        console.error("Error applying rate limit after successful generation:", rateLimitError);
+        console.error(
+          "Error applying rate limit after successful generation:",
+          rateLimitError,
+        );
         // Don't fail the request if rate limiting fails, just log it
       }
     }
@@ -253,7 +272,7 @@ export async function POST(request: NextRequest) {
           error instanceof Error ? error.message : "Unknown error"
         }`,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -227,7 +227,11 @@ Only return the JSON, no other text.`;
 
     let response;
     try {
-      console.log("Starting image generation...");
+      console.log("Starting image generation for ...");
+      console.dir({
+        fullPrompt,
+        referenceImages,
+      });
       const startTime = Date.now();
       response = await client.images.generate({
         model: IMAGE_MODEL,
