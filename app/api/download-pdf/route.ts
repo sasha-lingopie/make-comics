@@ -75,11 +75,17 @@ export async function GET(request: NextRequest) {
 
     const pdfBuffer = Buffer.from(pdf.output("arraybuffer"));
 
+    // Sanitize filename to only contain ASCII characters
+    const safeFilename = story.title
+      .replace(/[^\x00-\x7F]/g, "") // Remove non-ASCII characters
+      .replace(/[<>:"/\\|?*]/g, "-") // Replace invalid filename characters
+      .trim() || "comic";
+
     // Return PDF as response
     return new NextResponse(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${story.title}.pdf"`,
+        "Content-Disposition": `attachment; filename="${safeFilename}.pdf"`,
       },
     });
   } catch (error) {
