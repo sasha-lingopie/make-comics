@@ -27,9 +27,18 @@ const IMAGE_MODEL = NEW_MODEL
   ? "google/gemini-3-pro-image"
   : "google/flash-image-2.5";
 
-const FIXED_DIMENSIONS = NEW_MODEL
-  ? { width: 896, height: 1200 }
-  : { width: 864, height: 1184 };
+// Dimensions vary based on model and whether reference images are used
+// gemini-3-pro-image: always supports 896x1200
+// flash-image-2.5: supports 864x1184 WITH ref images, 896x1200 WITHOUT ref images
+function getDimensions(hasReferenceImages: boolean) {
+  if (NEW_MODEL) {
+    return { width: 896, height: 1200 };
+  }
+  // flash-image-2.5 has different supported dimensions based on reference images
+  return hasReferenceImages
+    ? { width: 864, height: 1184 }
+    : { width: 896, height: 1200 };
+}
 
 const TEXT_MODEL = "Qwen/Qwen3-Next-80B-A3B-Instruct";
 
@@ -130,7 +139,7 @@ export async function POST(request: NextRequest) {
     // Use only the character images sent from the frontend
     referenceImages.push(...characterImages);
 
-    const dimensions = FIXED_DIMENSIONS;
+    const dimensions = getDimensions(referenceImages.length > 0);
 
     const fullPrompt = buildComicPrompt({
       prompt,

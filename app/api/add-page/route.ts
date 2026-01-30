@@ -26,9 +26,18 @@ const IMAGE_MODEL = NEW_MODEL
   ? "google/gemini-3-pro-image"
   : "google/flash-image-2.5";
 
-const FIXED_DIMENSIONS = NEW_MODEL
-  ? { width: 896, height: 1200 }
-  : { width: 864, height: 1184 };
+// Dimensions vary based on model and whether reference images are used
+// gemini-3-pro-image: always supports 896x1200
+// flash-image-2.5: supports 864x1184 WITH ref images, 896x1200 WITHOUT ref images
+function getDimensions(hasReferenceImages: boolean) {
+  if (NEW_MODEL) {
+    return { width: 896, height: 1200 };
+  }
+  // flash-image-2.5 has different supported dimensions based on reference images
+  return hasReferenceImages
+    ? { width: 864, height: 1184 }
+    : { width: 896, height: 1200 };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,8 +107,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const dimensions = FIXED_DIMENSIONS;
-
     // Collect reference images: previous page + story characters + current characters
     let referenceImages: string[] = [];
 
@@ -120,6 +127,9 @@ export async function POST(request: NextRequest) {
     // Use only the character images sent from the frontend (user's selection)
     // These are already the most recent/relevant characters the user wants to use
     referenceImages.push(...characterImages);
+
+    // Get dimensions based on whether we have reference images
+    const dimensions = getDimensions(referenceImages.length > 0);
 
     // Build the prompt with continuation context
     // For redraw, only include pages up to the current page being redrawn
