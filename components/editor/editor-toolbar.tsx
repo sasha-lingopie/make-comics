@@ -7,6 +7,7 @@ import {
   Plus,
   Info,
   Download,
+  ScanText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -15,6 +16,7 @@ import { useState, useRef, useEffect } from "react";
 
 interface EditorToolbarProps {
   title: string;
+  storySlug?: string;
   onContinueStory?: () => void;
   onDownloadPDF?: () => void;
   isGeneratingPDF?: boolean;
@@ -24,6 +26,7 @@ interface EditorToolbarProps {
 
 export function EditorToolbar({
   title,
+  storySlug,
   onContinueStory,
   onDownloadPDF,
   isGeneratingPDF = false,
@@ -169,6 +172,17 @@ export function EditorToolbar({
           <Share className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>Share</span>
         </Button>
+
+        {storySlug && isOwner && (
+          <Button
+            variant="ghost"
+            className="hover:bg-secondary text-muted-foreground hover:text-white gap-1.5 sm:gap-2 text-xs h-8 sm:h-9 px-2 sm:px-3 hidden md:flex"
+            onClick={() => router.push(`/story/${storySlug}/text-recognition`)}
+          >
+            <ScanText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Text Recognition</span>
+          </Button>
+        )}
 
         {onDownloadPDF && (
           <Button

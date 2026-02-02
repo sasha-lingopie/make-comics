@@ -472,6 +472,7 @@ export function StoryEditorClient() {
     <div className="h-screen flex flex-col bg-background">
       <EditorToolbar
         title={story.title}
+        storySlug={story.slug}
         onContinueStory={handleAddPage}
         onDownloadPDF={downloadPDF}
         isGeneratingPDF={isGeneratingPDF}

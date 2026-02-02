@@ -38,9 +38,34 @@ export const pagesRelations = relations(pages, ({ one }) => ({
   }),
 }));
 
+// Page text blocks table - stores OCR recognized text with positions
+export const pageTextBlocks = pgTable('page_text_blocks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pageId: uuid('page_id').references(() => pages.id, { onDelete: 'cascade' }).notNull(),
+  text: text('text').notNull(),
+  // Bounding box coordinates (normalized 0-1 relative to image dimensions)
+  boundingBox: jsonb('bounding_box').$type<{
+    vertices: { x: number; y: number }[];
+  }>().notNull(),
+  // Confidence score from OCR (0-1)
+  confidence: integer('confidence'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Update pages relations to include text blocks
+export const pageTextBlocksRelations = relations(pageTextBlocks, ({ one }) => ({
+  page: one(pages, {
+    fields: [pageTextBlocks.pageId],
+    references: [pages.id],
+  }),
+}));
+
 // Types
 export type Story = typeof stories.$inferSelect;
 export type NewStory = typeof stories.$inferInsert;
 
 export type Page = typeof pages.$inferSelect;
 export type NewPage = typeof pages.$inferInsert;
+
+export type PageTextBlock = typeof pageTextBlocks.$inferSelect;
+export type NewPageTextBlock = typeof pageTextBlocks.$inferInsert;
