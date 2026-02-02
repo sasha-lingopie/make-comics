@@ -36,7 +36,7 @@ function getDimensions(hasReferenceImages: boolean) {
   // flash-image-2.5 has different supported dimensions based on reference images
   return hasReferenceImages
     ? { width: 864, height: 1184 }
-    : { width: 896, height: 1200 };
+    : { width: 896, height: 1152 };
 }
 
 export async function POST(request: NextRequest) {
