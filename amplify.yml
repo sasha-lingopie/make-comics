@@ -7,7 +7,7 @@ frontend:
         - pnpm install
     build:
       commands:
-        - env | grep -E '^(CLERK_|NEXT_PUBLIC_|DATABASE_URL|TOGETHER_|S3_|UPSTASH_)' >> .env.production
+        - env | grep -E '^(CLERK_|NEXT_PUBLIC_|DATABASE_URL|TOGETHER_|S3_|UPSTASH_|GOOGLE_)' >> .env.production
         - pnpm run build
   artifacts:
     baseDirectory: .next
