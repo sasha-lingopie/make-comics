@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Upload, X, Loader2, Check } from "lucide-react";
+import { Upload, X, Loader2, Check, Settings2, ChevronDown, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +15,8 @@ import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { validateFileForUpload, generateFilePreview } from "@/lib/file-utils";
 import { useS3Upload } from "next-s3-upload";
 import { isContentPolicyViolation } from "@/lib/utils";
+import { IMAGE_MODELS, PAGE_LAYOUTS, DEFAULT_IMAGE_MODEL, DEFAULT_PAGE_LAYOUT, type ImageModelId, type PageLayoutId } from "@/lib/constants";
+import { getDefaultSystemPrompt } from "@/lib/prompt";
 
 interface CharacterItem {
   url: string;
@@ -29,6 +31,9 @@ interface GeneratePageModalProps {
   onGenerate: (data: {
     prompt: string;
     characterUrls?: string[];
+    model?: ImageModelId;
+    layout?: PageLayoutId;
+    customSystemPrompt?: string;
   }) => Promise<void>;
   pageNumber: number;
   isRedrawMode?: boolean;
@@ -36,6 +41,7 @@ interface GeneratePageModalProps {
   existingCharacters?: string[]; // All characters from the story
   lastPageCharacters?: string[]; // Characters used on the last page
   previousPageCharacters?: string[]; // Characters used on the previous page (if last page had < 2)
+  storyStyle?: string;
 }
 
 export function GeneratePageModal({
@@ -48,6 +54,7 @@ export function GeneratePageModal({
   existingCharacters = [],
   lastPageCharacters = [],
   previousPageCharacters = [],
+  storyStyle = "noir",
 }: GeneratePageModalProps) {
   const [prompt, setPrompt] = useState("");
   const [characters, setCharacters] = useState<CharacterItem[]>([]);
@@ -56,9 +63,20 @@ export function GeneratePageModal({
   >(new Set());
   const [showPreview, setShowPreview] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [model, setModel] = useState<ImageModelId>(DEFAULT_IMAGE_MODEL);
+  const [layout, setLayout] = useState<PageLayoutId>(DEFAULT_PAGE_LAYOUT);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
+  const [customSystemPrompt, setCustomSystemPrompt] = useState<string>("");
+  const [showPromptPreview, setShowPromptPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { uploadToS3 } = useS3Upload();
+
+  const MODEL_STORAGE_KEY = 'comic-model-preference';
+  const LAYOUT_STORAGE_KEY = 'comic-layout-preference';
+  const CUSTOM_PROMPT_STORAGE_KEY = 'comic-custom-prompt';
 
   // Reset form and initialize characters when modal opens
   useEffect(() => {
@@ -66,6 +84,21 @@ export function GeneratePageModal({
       setPrompt(isRedrawMode ? existingPrompt : "");
       setShowPreview(null);
       setIsGenerating(false);
+      setShowAdvanced(false);
+      setShowModelDropdown(false);
+      setShowLayoutDropdown(false);
+      setShowPromptPreview(false);
+
+      // Load preferences from localStorage
+      const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
+      if (savedModel) setModel(savedModel as ImageModelId);
+      
+      const savedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
+      if (savedLayout) setLayout(savedLayout as PageLayoutId);
+      
+      const savedPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE_KEY);
+      if (savedPrompt) setCustomSystemPrompt(savedPrompt);
+      else setCustomSystemPrompt("");
 
 
 
@@ -265,9 +298,21 @@ export function GeneratePageModal({
         })
       );
 
+      // Save preferences to localStorage
+      localStorage.setItem(MODEL_STORAGE_KEY, model);
+      localStorage.setItem(LAYOUT_STORAGE_KEY, layout);
+      if (customSystemPrompt) {
+        localStorage.setItem(CUSTOM_PROMPT_STORAGE_KEY, customSystemPrompt);
+      } else {
+        localStorage.removeItem(CUSTOM_PROMPT_STORAGE_KEY);
+      }
+
       await onGenerate({
         prompt,
         characterUrls: characterUrls.length > 0 ? characterUrls : undefined,
+        model,
+        layout,
+        customSystemPrompt: customSystemPrompt || undefined,
       });
     } catch (error) {
       console.error("Error generating page:", error);
@@ -425,6 +470,103 @@ export function GeneratePageModal({
                     onChange={(e) => handleFiles(e.target.files)}
                   />
                 </div>
+
+                {/* Advanced Settings Toggle */}
+                <div className="mt-3 pt-3 border-t border-border/30">
+                  <button
+                    type="button"
+                    onClick={() => !isGenerating && setShowAdvanced(!showAdvanced)}
+                    disabled={isGenerating}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors disabled:opacity-50"
+                  >
+                    <Settings2 className="w-3 h-3" />
+                    <span>Advanced Settings</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showAdvanced && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {/* Model Selector */}
+                      <div className="relative dropdown-container">
+                        <button
+                          type="button"
+                          onClick={() => !isGenerating && setShowModelDropdown(!showModelDropdown)}
+                          disabled={isGenerating}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                        >
+                          <span className="text-muted-foreground/70">Model:</span>
+                          <span>{IMAGE_MODELS.find((m) => m.id === model)?.name}</span>
+                        </button>
+                        {showModelDropdown && (
+                          <div className="absolute left-0 bottom-full mb-2 w-48 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
+                            {IMAGE_MODELS.map((m) => (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => {
+                                  setModel(m.id);
+                                  setShowModelDropdown(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${model === m.id ? "bg-indigo/10 text-indigo" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span>{m.name}</span>
+                                  {model === m.id && <Check className="w-3 h-3" />}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground/70 mt-0.5">{m.description}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Layout Selector */}
+                      <div className="relative dropdown-container">
+                        <button
+                          type="button"
+                          onClick={() => !isGenerating && setShowLayoutDropdown(!showLayoutDropdown)}
+                          disabled={isGenerating}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                        >
+                          <span className="text-muted-foreground/70">Layout:</span>
+                          <span>{PAGE_LAYOUTS.find((l) => l.id === layout)?.name}</span>
+                        </button>
+                        {showLayoutDropdown && (
+                          <div className="absolute left-0 bottom-full mb-2 w-52 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
+                            {PAGE_LAYOUTS.map((l) => (
+                              <button
+                                key={l.id}
+                                type="button"
+                                onClick={() => {
+                                  setLayout(l.id);
+                                  setShowLayoutDropdown(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${layout === l.id ? "bg-indigo/10 text-indigo" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span>{l.name}</span>
+                                  {layout === l.id && <Check className="w-3 h-3" />}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground/70 mt-0.5">{l.description}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* System Prompt Preview/Edit */}
+                      <button
+                        type="button"
+                        onClick={() => !isGenerating && setShowPromptPreview(true)}
+                        disabled={isGenerating}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>{customSystemPrompt ? "Custom Prompt" : "View Prompt"}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -475,6 +617,54 @@ export function GeneratePageModal({
               alt="Character preview"
               className="w-full h-full object-contain rounded-lg"
             />
+          </div>
+        </div>
+      )}
+
+      {/* System Prompt Preview/Edit Modal */}
+      {showPromptPreview && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+          onClick={() => setShowPromptPreview(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[80vh] glass-panel p-6 rounded-xl z-[201] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-white">System Prompt</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-white/10"
+                onClick={() => setShowPromptPreview(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              This prompt controls how the AI generates your comic page. Edit it below or reset to use the default.
+            </p>
+            <textarea
+              value={customSystemPrompt || getDefaultSystemPrompt({ style: storyStyle, characterImages: [], layout })}
+              onChange={(e) => setCustomSystemPrompt(e.target.value)}
+              className="flex-1 min-h-[300px] w-full bg-background/50 border border-border/50 rounded-lg p-3 text-xs text-white focus:ring-1 focus:ring-indigo/50 focus:outline-none resize-none font-mono"
+            />
+            <div className="flex items-center justify-between mt-4 gap-2">
+              <Button
+                variant="ghost"
+                className="text-xs text-muted-foreground hover:text-white"
+                onClick={() => setCustomSystemPrompt("")}
+              >
+                Reset to Default
+              </Button>
+              <Button
+                className="bg-white hover:bg-neutral-200 text-black text-xs"
+                onClick={() => setShowPromptPreview(false)}
+              >
+                Done
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -1,4 +1,16 @@
-import { COMIC_STYLES } from "./constants";
+import { COMIC_STYLES, PAGE_LAYOUTS, DEFAULT_PAGE_LAYOUT, type PageLayoutId } from "./constants";
+
+export interface BuildComicPromptOptions {
+  prompt: string;
+  style?: string;
+  characterImages?: string[];
+  isContinuation?: boolean;
+  previousContext?: string;
+  isAddPage?: boolean;
+  previousPages?: Array<{ prompt: string }>;
+  layout?: PageLayoutId;
+  customSystemPrompt?: string;
+}
 
 export function buildComicPrompt({
   prompt,
@@ -8,19 +20,22 @@ export function buildComicPrompt({
   previousContext = "",
   isAddPage = false,
   previousPages = [],
-}: {
-  prompt: string;
-  style?: string;
-  characterImages?: string[];
-  isContinuation?: boolean;
-  previousContext?: string;
-  isAddPage?: boolean;
-  previousPages?: Array<{
-    prompt: string;
-  }>;
-}): string {
+  layout = DEFAULT_PAGE_LAYOUT,
+  customSystemPrompt,
+}: BuildComicPromptOptions): string {
+  // If custom system prompt is provided, use it directly
+  if (customSystemPrompt) {
+    return `${customSystemPrompt}\n\nSTORY:\n${prompt}`;
+  }
+
   const styleInfo = COMIC_STYLES.find((s) => s.id === style);
   const styleDesc = styleInfo?.prompt || COMIC_STYLES[2].prompt;
+
+  const layoutInfo = PAGE_LAYOUTS.find((l) => l.id === layout);
+  const layoutPrompt = layoutInfo?.prompt || PAGE_LAYOUTS[1].prompt;
+
+  // Determine panel count for character consistency instructions
+  const panelCount = getPanelCount(layout);
 
   let continuationContext = "";
   if (isContinuation && previousContext) {
@@ -38,22 +53,24 @@ export function buildComicPrompt({
   let characterSection = "";
   if (characterImages.length > 0) {
     if (characterImages.length === 1) {
+      const panelText = panelCount === 1 ? "the panel" : `ALL ${panelCount} panels`;
       characterSection = `
 CRITICAL FACE CONSISTENCY INSTRUCTIONS:
 - REFERENCE CHARACTER: Use the uploaded image as EXACT reference for the protagonist's face and appearance
 - FACE MATCHING: The character's face must be IDENTICAL to the reference image - same eyes, nose, mouth, hair, facial structure
 - APPEARANCE PRESERVATION: Maintain exact skin tone, hair color/style, eye color, and distinctive facial features
-- CHARACTER CONSISTENCY: This exact same character must appear in ALL 5 panels with the same face throughout
+- CHARACTER CONSISTENCY: This exact same character must appear in ${panelText} with the same face throughout
 - STYLE APPLICATION: Apply ${style} comic art style to the body/pose/action but KEEP THE FACE EXACTLY AS IN THE REFERENCE IMAGE
 - NO VARIATION: Do not alter, modify, or change the character's face in any way from the reference`;
     } else if (characterImages.length === 2) {
+      const presenceText = panelCount === 1 ? "the panel" : `at least ${Math.max(1, panelCount - 1)} of the ${panelCount} panels`;
       characterSection = `
 CRITICAL DUAL CHARACTER FACE CONSISTENCY INSTRUCTIONS:
 - CHARACTER 1 REFERENCE: Use the FIRST uploaded image as EXACT reference for Character 1's face and appearance
 - CHARACTER 2 REFERENCE: Use the SECOND uploaded image as EXACT reference for Character 2's face and appearance
 - FACE MATCHING: Both characters' faces must be IDENTICAL to their respective reference images
 - VISUAL DISTINCTION: Keep both characters clearly visually distinct with their unique faces, hair, and features
-- CONSISTENT PRESENCE: Both characters must appear together in at least 4 of the 5 panels
+- CONSISTENT PRESENCE: Both characters must appear together in ${presenceText}
 - STYLE APPLICATION: Apply ${style} comic art style while maintaining EXACT facial features from references
 - NO FACE VARIATION: Never alter or modify either character's face from their reference images`;
     }
@@ -76,13 +93,7 @@ TEXT AND LETTERING (CRITICAL):
 - Keep dialogue SHORT: maximum 1-2 sentences per bubble
 - NO blurry, warped, or unreadable text
 
-PAGE LAYOUT:
-5-panel comic page arranged as:
-[Panel 1] [Panel 2] — top row, 2 equal panels
-[    Panel 3      ] — middle row, 1 large cinematic hero panel
-[Panel 4] [Panel 5] — bottom row, 2 equal panels
-- Solid black panel borders with clean white gutters between panels
-- Each panel clearly separated and distinct
+${layoutPrompt}
 
 ART STYLE:
 ${styleDesc}
@@ -95,4 +106,20 @@ COMPOSITION:
 - Detailed backgrounds matching the scene and mood`;
 
   return `${systemPrompt}\n\nSTORY:\n${prompt}`;
+}
+
+function getPanelCount(layout: PageLayoutId): number {
+  switch (layout) {
+    case "single-panel": return 1;
+    case "3-panel-vertical": return 3;
+    case "4-panel-grid": return 4;
+    case "classic-5-panel": return 5;
+    case "6-panel-grid": return 6;
+    default: return 5;
+  }
+}
+
+export function getDefaultSystemPrompt(options: Omit<BuildComicPromptOptions, 'prompt' | 'customSystemPrompt'>): string {
+  const fullPrompt = buildComicPrompt({ ...options, prompt: "[USER_STORY_HERE]" });
+  return fullPrompt.replace("\n\nSTORY:\n[USER_STORY_HERE]", "");
 }

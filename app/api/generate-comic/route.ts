@@ -12,7 +12,7 @@ import {
   deletePage,
   deleteStory,
 } from "@/lib/db-actions";
-import { COMIC_STYLES } from "@/lib/constants";
+import { COMIC_STYLES, IMAGE_MODELS, DEFAULT_IMAGE_MODEL, DEFAULT_PAGE_LAYOUT, type ImageModelId, type PageLayoutId } from "@/lib/constants";
 import { uploadImageToS3 } from "@/lib/s3-upload";
 import { buildComicPrompt } from "@/lib/prompt";
 import {
@@ -20,23 +20,13 @@ import {
   getContentPolicyErrorMessage,
 } from "@/lib/utils";
 
-const NEW_MODEL = false;
+function getModelConfig(modelId: ImageModelId) {
+  return IMAGE_MODELS.find((m) => m.id === modelId) || IMAGE_MODELS[0];
+}
 
-const IMAGE_MODEL = NEW_MODEL
-  ? "google/gemini-3-pro-image"
-  : "google/flash-image-2.5";
-
-// Dimensions vary based on model and whether reference images are used
-// gemini-3-pro-image: always supports 896x1200
-// flash-image-2.5: supports 864x1184 WITH ref images, 896x1200 WITHOUT ref images
-function getDimensions(hasReferenceImages: boolean) {
-  if (NEW_MODEL) {
-    return { width: 896, height: 1200 };
-  }
-  // flash-image-2.5 has different supported dimensions based on reference images
-  return hasReferenceImages
-    ? { width: 864, height: 1184 }
-    : { width: 896, height: 1152 };
+function getDimensions(modelId: ImageModelId, hasReferenceImages: boolean) {
+  const model = getModelConfig(modelId);
+  return hasReferenceImages ? model.dimensionsWithRef : model.dimensionsWithoutRef;
 }
 
 const TEXT_MODEL = "Qwen/Qwen3-Next-80B-A3B-Instruct";
@@ -59,7 +49,20 @@ export async function POST(request: NextRequest) {
       characterImages = [],
       isContinuation = false,
       previousContext = "",
-    } = await request.json();
+      model: modelId = DEFAULT_IMAGE_MODEL,
+      layout = DEFAULT_PAGE_LAYOUT,
+      customSystemPrompt,
+    } = await request.json() as {
+      storyId?: string;
+      prompt: string;
+      style?: string;
+      characterImages?: string[];
+      isContinuation?: boolean;
+      previousContext?: string;
+      model?: ImageModelId;
+      layout?: PageLayoutId;
+      customSystemPrompt?: string;
+    };
 
     if (!prompt) {
       return NextResponse.json(
@@ -96,6 +99,9 @@ export async function POST(request: NextRequest) {
         pageNumber: nextPageNumber,
         prompt,
         characterImageUrls: characterImages,
+        model: modelId,
+        layout,
+        isCustomPrompt: !!customSystemPrompt,
       });
 
       // Get previous page image for style consistency (unless it's page 1)
@@ -123,13 +129,17 @@ export async function POST(request: NextRequest) {
         pageNumber: 1,
         prompt,
         characterImageUrls: characterImages,
+        model: modelId,
+        layout,
+        isCustomPrompt: !!customSystemPrompt,
       });
     }
 
     // Use only the character images sent from the frontend
     referenceImages.push(...characterImages);
 
-    const dimensions = getDimensions(referenceImages.length > 0);
+    const modelConfig = getModelConfig(modelId);
+    const dimensions = getDimensions(modelId, referenceImages.length > 0);
 
     const fullPrompt = buildComicPrompt({
       prompt,
@@ -137,6 +147,8 @@ export async function POST(request: NextRequest) {
       characterImages,
       isContinuation,
       previousContext,
+      layout,
+      customSystemPrompt,
     });
 
     const client = new Together({ apiKey });
@@ -233,7 +245,7 @@ Only return the JSON, no other text.`;
       });
       const startTime = Date.now();
       response = await client.images.generate({
-        model: IMAGE_MODEL,
+        model: modelConfig.modelId,
         prompt: fullPrompt,
         width: dimensions.width,
         height: dimensions.height,

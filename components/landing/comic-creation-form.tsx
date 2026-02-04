@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Upload, X, Check, ArrowRight, Loader2 } from "lucide-react";
+import { Upload, X, Check, ArrowRight, Loader2, Settings2, ChevronDown, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useS3Upload } from "next-s3-upload";
 import { useAuth, SignInButton, useClerk } from "@clerk/nextjs";
-import { COMIC_STYLES } from "@/lib/constants";
+import { COMIC_STYLES, IMAGE_MODELS, PAGE_LAYOUTS, DEFAULT_IMAGE_MODEL, DEFAULT_PAGE_LAYOUT, type ImageModelId, type PageLayoutId } from "@/lib/constants";
+import { getDefaultSystemPrompt } from "@/lib/prompt";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { isContentPolicyViolation } from "@/lib/utils";
 
@@ -24,6 +26,9 @@ interface ComicCreationFormProps {
 
 const DEFAULT_STYLE = 'noir';
 const STYLE_STORAGE_KEY = 'comic-style-preference';
+const MODEL_STORAGE_KEY = 'comic-model-preference';
+const LAYOUT_STORAGE_KEY = 'comic-layout-preference';
+const CUSTOM_PROMPT_STORAGE_KEY = 'comic-custom-prompt';
 
 export function ComicCreationForm({
   prompt,
@@ -44,6 +49,13 @@ export function ComicCreationForm({
   const [previews, setPreviews] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState<number | null>(null);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [model, setModel] = useState<ImageModelId>(DEFAULT_IMAGE_MODEL);
+  const [layout, setLayout] = useState<PageLayoutId>(DEFAULT_PAGE_LAYOUT);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
+  const [customSystemPrompt, setCustomSystemPrompt] = useState<string>("");
+  const [showPromptPreview, setShowPromptPreview] = useState(false);
 
   // Initialize style with initial value, load from localStorage after mount
   const [style, setStyle] = useState(initialStyle || DEFAULT_STYLE);
@@ -81,19 +93,42 @@ export function ComicCreationForm({
     }
   }, []); // Run only on mount
 
-  // Load style preference from localStorage on mount
+  // Load preferences from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STYLE_STORAGE_KEY);
-    if (saved) {
-      setStyle(saved);
-    }
+    const savedStyle = localStorage.getItem(STYLE_STORAGE_KEY);
+    if (savedStyle) setStyle(savedStyle);
+    
+    const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
+    if (savedModel) setModel(savedModel as ImageModelId);
+    
+    const savedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
+    if (savedLayout) setLayout(savedLayout as PageLayoutId);
+    
+    const savedPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE_KEY);
+    if (savedPrompt) setCustomSystemPrompt(savedPrompt);
   }, []);
 
-  // Save style to localStorage and sync with parent
+  // Save preferences to localStorage
   useEffect(() => {
     localStorage.setItem(STYLE_STORAGE_KEY, style);
     setParentStyle(style);
   }, [style, setParentStyle]);
+
+  useEffect(() => {
+    localStorage.setItem(MODEL_STORAGE_KEY, model);
+  }, [model]);
+
+  useEffect(() => {
+    localStorage.setItem(LAYOUT_STORAGE_KEY, layout);
+  }, [layout]);
+
+  useEffect(() => {
+    if (customSystemPrompt) {
+      localStorage.setItem(CUSTOM_PROMPT_STORAGE_KEY, customSystemPrompt);
+    } else {
+      localStorage.removeItem(CUSTOM_PROMPT_STORAGE_KEY);
+    }
+  }, [customSystemPrompt]);
 
   // Keyboard shortcut for form submission
   useKeyboardShortcut(() => {
@@ -146,6 +181,8 @@ export function ComicCreationForm({
       const target = event.target as HTMLElement;
       if (!target.closest(".dropdown-container")) {
         setShowStyleDropdown(false);
+        setShowModelDropdown(false);
+        setShowLayoutDropdown(false);
       }
     };
 
@@ -190,6 +227,9 @@ export function ComicCreationForm({
           prompt,
           style,
           characterImages: characterUploads,
+          model,
+          layout,
+          customSystemPrompt: customSystemPrompt || undefined,
         }),
       });
 
@@ -321,55 +361,149 @@ export function ComicCreationForm({
             </div>
 
             <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-start sm:justify-end">
-              <div className="relative dropdown-container z-60">
-                <button
-                  onClick={() => {
-                    if (!isLoading) setShowStyleDropdown(!showStyleDropdown);
-                  }}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
-                >
-                  <svg
-                    className="w-3 h-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+              {/* Style Selector - hidden when custom prompt is set */}
+              {!customSystemPrompt && (
+                <div className="relative dropdown-container z-60">
+                  <button
+                    onClick={() => {
+                      if (!isLoading) setShowStyleDropdown(!showStyleDropdown);
+                    }}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
-                    />
-                  </svg>
-                  <span>{COMIC_STYLES.find((s) => s.id === style)?.name}</span>
-                </button>
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+                      />
+                    </svg>
+                    <span>{COMIC_STYLES.find((s) => s.id === style)?.name}</span>
+                  </button>
 
-                {showStyleDropdown && (
-                  <div className="absolute left-0 sm:right-0 sm:left-auto bottom-full mb-2 w-40 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
-                    {COMIC_STYLES.map((styleOption) => (
-                      <button
-                        key={styleOption.id}
-                        onClick={() => {
-                          setStyle(styleOption.id);
-                          setShowStyleDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded text-xs transition-colors flex items-center justify-between ${style === styleOption.id
-                            ? "bg-indigo/10 text-indigo"
-                            : "text-muted-foreground hover:bg-white/5 hover:text-white"
-                          }`}
-                      >
-                        <span>{styleOption.name}</span>
-                        {style === styleOption.id && (
-                          <Check className="w-3 h-3" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  {showStyleDropdown && (
+                    <div className="absolute left-0 sm:right-0 sm:left-auto bottom-full mb-2 w-40 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
+                      {COMIC_STYLES.map((styleOption) => (
+                        <button
+                          key={styleOption.id}
+                          onClick={() => {
+                            setStyle(styleOption.id);
+                            setShowStyleDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded text-xs transition-colors flex items-center justify-between ${style === styleOption.id
+                              ? "bg-indigo/10 text-indigo"
+                              : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                            }`}
+                        >
+                          <span>{styleOption.name}</span>
+                          {style === styleOption.id && (
+                            <Check className="w-3 h-3" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Advanced Settings Toggle */}
+              <button
+                onClick={() => !isLoading && setShowAdvanced(!showAdvanced)}
+                disabled={isLoading}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Settings2 className="w-3 h-3" />
+                <ChevronDown className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+              </button>
             </div>
           </div>
+
+          {/* Advanced Settings Panel */}
+          {showAdvanced && (
+            <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {/* Model Selector */}
+                <div className="relative dropdown-container">
+                  <button
+                    onClick={() => !isLoading && setShowModelDropdown(!showModelDropdown)}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                  >
+                    <span className="text-muted-foreground/70">Model:</span>
+                    <span>{IMAGE_MODELS.find((m) => m.id === model)?.name}</span>
+                  </button>
+                  {showModelDropdown && (
+                    <div className="absolute left-0 bottom-full mb-2 w-48 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
+                      {IMAGE_MODELS.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            setModel(m.id);
+                            setShowModelDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${model === m.id ? "bg-indigo/10 text-indigo" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{m.name}</span>
+                            {model === m.id && <Check className="w-3 h-3" />}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground/70 mt-0.5">{m.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Layout Selector */}
+                <div className="relative dropdown-container">
+                  <button
+                    onClick={() => !isLoading && setShowLayoutDropdown(!showLayoutDropdown)}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                  >
+                    <span className="text-muted-foreground/70">Layout:</span>
+                    <span>{PAGE_LAYOUTS.find((l) => l.id === layout)?.name}</span>
+                  </button>
+                  {showLayoutDropdown && (
+                    <div className="absolute left-0 bottom-full mb-2 w-52 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
+                      {PAGE_LAYOUTS.map((l) => (
+                        <button
+                          key={l.id}
+                          onClick={() => {
+                            setLayout(l.id);
+                            setShowLayoutDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${layout === l.id ? "bg-indigo/10 text-indigo" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{l.name}</span>
+                            {layout === l.id && <Check className="w-3 h-3" />}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground/70 mt-0.5">{l.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* System Prompt Preview/Edit */}
+                <button
+                  onClick={() => !isLoading && setShowPromptPreview(true)}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                >
+                  <Eye className="w-3 h-3" />
+                  <span>{customSystemPrompt ? "Custom Prompt" : "View Prompt"}</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           <input
             ref={fileInputRef}
@@ -403,6 +537,60 @@ export function ComicCreationForm({
             />
           </div>
         </div>
+      )}
+
+      {/* System Prompt Preview/Edit Modal */}
+      {showPromptPreview && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+          onClick={() => setShowPromptPreview(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[80vh] glass-panel p-6 rounded-xl z-[201] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-white">System Prompt</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-white/10"
+                onClick={() => setShowPromptPreview(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              This prompt controls how the AI generates your comic. Edit it below or reset to use the default.
+              {customSystemPrompt && (
+                <span className="block mt-2 text-amber-500">
+                  ⚠️ Custom prompt is active. Style selector is hidden. Use "Reset to Default" to restore it.
+                </span>
+              )}
+            </p>
+            <textarea
+              value={customSystemPrompt || getDefaultSystemPrompt({ style, characterImages: [], layout })}
+              onChange={(e) => setCustomSystemPrompt(e.target.value)}
+              className="flex-1 min-h-[300px] w-full bg-background/50 border border-border/50 rounded-lg p-3 text-xs text-white focus:ring-1 focus:ring-indigo/50 focus:outline-none resize-none font-mono"
+            />
+            <div className="flex items-center justify-between mt-4 gap-2">
+              <Button
+                variant="ghost"
+                className="text-xs text-muted-foreground hover:text-white"
+                onClick={() => setCustomSystemPrompt("")}
+              >
+                Reset to Default
+              </Button>
+              <Button
+                className="bg-white hover:bg-neutral-200 text-black text-xs"
+                onClick={() => setShowPromptPreview(false)}
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       <div className="pt-4">
