@@ -460,37 +460,39 @@ export function ComicCreationForm({
                   )}
                 </div>
 
-                {/* Layout Selector */}
-                <div className="relative dropdown-container">
-                  <button
-                    onClick={() => !isLoading && setShowLayoutDropdown(!showLayoutDropdown)}
-                    disabled={isLoading}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
-                  >
-                    <span className="text-muted-foreground/70">Layout:</span>
-                    <span>{PAGE_LAYOUTS.find((l) => l.id === layout)?.name}</span>
-                  </button>
-                  {showLayoutDropdown && (
-                    <div className="absolute left-0 bottom-full mb-2 w-52 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
-                      {PAGE_LAYOUTS.map((l) => (
-                        <button
-                          key={l.id}
-                          onClick={() => {
-                            setLayout(l.id);
-                            setShowLayoutDropdown(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${layout === l.id ? "bg-indigo/10 text-indigo" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span>{l.name}</span>
-                            {layout === l.id && <Check className="w-3 h-3" />}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground/70 mt-0.5">{l.description}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {/* Layout Selector - hidden when custom prompt is set */}
+                {!customSystemPrompt && (
+                  <div className="relative dropdown-container">
+                    <button
+                      onClick={() => !isLoading && setShowLayoutDropdown(!showLayoutDropdown)}
+                      disabled={isLoading}
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                    >
+                      <span className="text-muted-foreground/70">Layout:</span>
+                      <span>{PAGE_LAYOUTS.find((l) => l.id === layout)?.name}</span>
+                    </button>
+                    {showLayoutDropdown && (
+                      <div className="absolute left-0 bottom-full mb-2 w-52 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
+                        {PAGE_LAYOUTS.map((l) => (
+                          <button
+                            key={l.id}
+                            onClick={() => {
+                              setLayout(l.id);
+                              setShowLayoutDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${layout === l.id ? "bg-indigo/10 text-indigo" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span>{l.name}</span>
+                              {layout === l.id && <Check className="w-3 h-3" />}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground/70 mt-0.5">{l.description}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* System Prompt Preview/Edit */}
                 <button

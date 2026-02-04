@@ -520,49 +520,51 @@ export function GeneratePageModal({
                         )}
                       </div>
 
-                      {/* Layout Selector */}
-                      <div className="relative dropdown-container">
-                        <button
-                          type="button"
-                          onClick={() => !isGenerating && setShowLayoutDropdown(!showLayoutDropdown)}
-                          disabled={isGenerating}
-                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
-                        >
-                          <span className="text-muted-foreground/70">Layout:</span>
-                          <span>{PAGE_LAYOUTS.find((l) => l.id === layout)?.name}</span>
-                        </button>
-                        {showLayoutDropdown && (
-                          <div className="absolute left-0 bottom-full mb-2 w-52 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
-                            {PAGE_LAYOUTS.map((l) => (
-                              <button
-                                key={l.id}
-                                type="button"
-                                onClick={() => {
-                                  setLayout(l.id);
-                                  setShowLayoutDropdown(false);
-                                }}
-                                className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${layout === l.id ? "bg-indigo/10 text-indigo" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span>{l.name}</span>
-                                  {layout === l.id && <Check className="w-3 h-3" />}
-                                </div>
-                                <div className="text-[10px] text-muted-foreground/70 mt-0.5">{l.description}</div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      {/* Layout Selector - hidden when custom prompt is set */}
+                      {!customSystemPrompt && (
+                        <div className="relative dropdown-container">
+                          <button
+                            type="button"
+                            onClick={() => !isGenerating && setShowLayoutDropdown(!showLayoutDropdown)}
+                            disabled={isGenerating}
+                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                          >
+                            <span className="text-muted-foreground/70">Layout:</span>
+                            <span>{PAGE_LAYOUTS.find((l) => l.id === layout)?.name}</span>
+                          </button>
+                          {showLayoutDropdown && (
+                            <div className="absolute left-0 bottom-full mb-2 w-52 bg-background rounded-lg p-1 z-70 shadow-2xl border border-border/50">
+                              {PAGE_LAYOUTS.map((l) => (
+                                <button
+                                  key={l.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setLayout(l.id);
+                                    setShowLayoutDropdown(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${layout === l.id ? "bg-indigo/10 text-indigo" : "text-muted-foreground hover:bg-white/5 hover:text-white"}`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span>{l.name}</span>
+                                    {layout === l.id && <Check className="w-3 h-3" />}
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground/70 mt-0.5">{l.description}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                      {/* System Prompt Preview/Edit */}
+                      {/* System Prompt Preview */}
                       <button
                         type="button"
                         onClick={() => !isGenerating && setShowPromptPreview(true)}
                         disabled={isGenerating}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs text-muted-foreground hover:text-white disabled:opacity-50"
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md glass-panel glass-panel-hover transition-all text-xs disabled:opacity-50 ${customSystemPrompt ? "text-amber-500 hover:text-amber-400" : "text-muted-foreground hover:text-white"}`}
                       >
                         <Eye className="w-3 h-3" />
-                        <span>{customSystemPrompt ? "Custom Prompt" : "View Prompt"}</span>
+                        <span>{customSystemPrompt ? "Custom Prompt ✓" : "View Prompt"}</span>
                       </button>
                     </div>
                   )}
@@ -621,7 +623,7 @@ export function GeneratePageModal({
         </div>
       )}
 
-      {/* System Prompt Preview/Edit Modal */}
+      {/* System Prompt Preview Modal (read-only) */}
       {showPromptPreview && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
@@ -632,7 +634,7 @@ export function GeneratePageModal({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-white">System Prompt</h3>
+              <h3 className="text-lg font-medium text-white">System Prompt Preview</h3>
               <Button
                 variant="ghost"
                 size="icon"
@@ -643,26 +645,27 @@ export function GeneratePageModal({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mb-3">
-              This prompt controls how the AI generates your comic page. Edit it below or reset to use the default.
+              This is the prompt that will be used for generation.
+              {customSystemPrompt && (
+                <span className="block mt-1 text-amber-500">
+                  ⚠️ Using custom prompt from your settings.
+                </span>
+              )}
+              {!customSystemPrompt && (
+                <span className="block mt-1 text-muted-foreground/70">
+                  To edit the system prompt, go to the home page and use Advanced Settings.
+                </span>
+              )}
             </p>
-            <textarea
-              value={customSystemPrompt || getDefaultSystemPrompt({ style: storyStyle, characterImages: [], layout })}
-              onChange={(e) => setCustomSystemPrompt(e.target.value)}
-              className="flex-1 min-h-[300px] w-full bg-background/50 border border-border/50 rounded-lg p-3 text-xs text-white focus:ring-1 focus:ring-indigo/50 focus:outline-none resize-none font-mono"
-            />
-            <div className="flex items-center justify-between mt-4 gap-2">
-              <Button
-                variant="ghost"
-                className="text-xs text-muted-foreground hover:text-white"
-                onClick={() => setCustomSystemPrompt("")}
-              >
-                Reset to Default
-              </Button>
+            <div className="flex-1 min-h-[300px] w-full bg-background/50 border border-border/50 rounded-lg p-3 text-xs text-white/70 overflow-auto font-mono whitespace-pre-wrap">
+              {customSystemPrompt || getDefaultSystemPrompt({ style: storyStyle, characterImages: [], layout })}
+            </div>
+            <div className="flex justify-end mt-4">
               <Button
                 className="bg-white hover:bg-neutral-200 text-black text-xs"
                 onClick={() => setShowPromptPreview(false)}
               >
-                Done
+                Close
               </Button>
             </div>
           </div>
