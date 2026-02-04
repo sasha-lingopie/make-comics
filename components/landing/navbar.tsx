@@ -2,24 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Github, Key, BookOpen, User, Plus } from "lucide-react";
+import { Github, User, Plus } from "lucide-react";
 import Link from "next/link";
-import { ApiKeyModal } from "@/components/api-key-modal";
 import { SignInButton, SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
-import { useApiKey } from "@/hooks/use-api-key";
 
 export function Navbar() {
-  const [showApiModal, setShowApiModal] = useState(false);
   const [stars, setStars] = useState<string>("-");
 
   const { isLoaded } = useAuth();
   const pathname = usePathname();
-  const [, setApiKey] = useApiKey();
-
-  const handleApiKeySubmit = (key: string) => {
-    setApiKey(key);
-    setShowApiModal(false);
-  };
 
   useEffect(() => {
     async function fetchStars() {
@@ -72,16 +63,6 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={() => setShowApiModal(true)}
-            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 glass-panel glass-panel-hover transition-all text-xs rounded-md cursor-pointer"
-          >
-            <Key className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="text-muted-foreground text-xs sm:text-sm hidden sm:inline tracking-tight">
-              API Key
-            </span>
-          </button>
-
           <Link
             href="https://github.com/nutlope/make-comics"
             target="_blank"
@@ -126,12 +107,6 @@ export function Navbar() {
           </SignedIn>
         </div>
       </nav>
-
-      <ApiKeyModal
-        isOpen={showApiModal}
-        onClose={() => setShowApiModal(false)}
-        onSubmit={handleApiKeySubmit}
-      />
     </>
   );
 }

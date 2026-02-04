@@ -12,7 +12,6 @@ import {
   deletePage,
   deleteStory,
 } from "@/lib/db-actions";
-import { freeTierRateLimit } from "@/lib/rate-limit";
 import { COMIC_STYLES } from "@/lib/constants";
 import { uploadImageToS3 } from "@/lib/s3-upload";
 import { buildComicPrompt } from "@/lib/prompt";
@@ -56,7 +55,6 @@ export async function POST(request: NextRequest) {
     const {
       storyId,
       prompt,
-      apiKey,
       style = "noir",
       characterImages = [],
       isContinuation = false,
@@ -70,22 +68,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine which API key to use
-    let finalApiKey = apiKey;
-    const isUsingFreeTier = !apiKey;
-    const usesOwnApiKey = !!apiKey;
-
-    if (isUsingFreeTier) {
-      // Use default API key for free tier
-      finalApiKey = process.env.TOGETHER_API_KEY;
-      if (!finalApiKey) {
-        return NextResponse.json(
-          {
-            error: "Server configuration error - default API key not available",
-          },
-          { status: 500 },
-        );
-      }
+    // Use server-side API key for all registered users
+    const apiKey = process.env.TOGETHER_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          error: "Server configuration error - API key not available",
+        },
+        { status: 500 },
+      );
     }
 
     let page;
@@ -125,7 +116,6 @@ export async function POST(request: NextRequest) {
         description: undefined,
         userId: userId,
         style,
-        usesOwnApiKey,
       });
 
       page = await createPage({
@@ -149,7 +139,7 @@ export async function POST(request: NextRequest) {
       previousContext,
     });
 
-    const client = new Together({ apiKey: finalApiKey });
+    const client = new Together({ apiKey });
 
     // Generate title and description in parallel with image generation (only for new stories)
     let titleGenerationPromise: Promise<{
@@ -369,19 +359,6 @@ Only return the JSON, no other text.`;
         { error: "Failed to save generated image" },
         { status: 500 },
       );
-    }
-
-    // Apply rate limiting for free tier after successful generation
-    if (isUsingFreeTier) {
-      try {
-        await freeTierRateLimit.limit(userId);
-      } catch (rateLimitError) {
-        console.error(
-          "Error applying rate limit after successful generation:",
-          rateLimitError,
-        );
-        // Don't fail the request if rate limiting fails, just log it
-      }
     }
 
     const responseData = storyId

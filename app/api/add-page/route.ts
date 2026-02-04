@@ -12,7 +12,6 @@ import {
   getLastPageImage,
   deletePage,
 } from "@/lib/db-actions";
-import { freeTierRateLimit } from "@/lib/rate-limit";
 import { uploadImageToS3 } from "@/lib/s3-upload";
 import { buildComicPrompt } from "@/lib/prompt";
 import {
@@ -254,20 +253,6 @@ export async function POST(request: NextRequest) {
     const s3ImageUrl = await uploadImageToS3(imageUrl, s3Key);
 
     await updatePage(page.id, s3ImageUrl);
-
-    // Apply rate limiting for free tier after successful generation
-    const hasApiKey = request.headers.get("x-api-key");
-    if (!hasApiKey) {
-      try {
-        await freeTierRateLimit.limit(userId);
-      } catch (rateLimitError) {
-        console.error(
-          "Error applying rate limit after successful generation:",
-          rateLimitError,
-        );
-        // Don't fail the request if rate limiting fails, just log it
-      }
-    }
 
     return NextResponse.json({
       imageUrl: s3ImageUrl,

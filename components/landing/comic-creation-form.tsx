@@ -9,9 +9,7 @@ import { useS3Upload } from "next-s3-upload";
 import { useAuth, SignInButton, useClerk } from "@clerk/nextjs";
 import { COMIC_STYLES } from "@/lib/constants";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
-import { useApiKey } from "@/hooks/use-api-key";
 import { isContentPolicyViolation } from "@/lib/utils";
-import { ApiKeyModal } from "@/components/api-key-modal";
 
 interface ComicCreationFormProps {
   prompt: string;
@@ -43,13 +41,9 @@ export function ComicCreationForm({
   const { uploadToS3 } = useS3Upload();
   const { isSignedIn, isLoaded } = useAuth();
   const { openSignIn } = useClerk();
-  const [apiKey, setApiKey] = useApiKey();
-  const hasApiKey = !!apiKey;
   const [previews, setPreviews] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState<number | null>(null);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
-  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
-  const [showApiModal, setShowApiModal] = useState(false);
 
   // Initialize style with initial value, load from localStorage after mount
   const [style, setStyle] = useState(initialStyle || DEFAULT_STYLE);
@@ -100,32 +94,6 @@ export function ComicCreationForm({
     localStorage.setItem(STYLE_STORAGE_KEY, style);
     setParentStyle(style);
   }, [style, setParentStyle]);
-
-  // Fetch credits on mount
-  useEffect(() => {
-    if (isSignedIn && !hasApiKey) {
-      const fetchCredits = async () => {
-        try {
-          const response = await fetch('/api/check-credits', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ hasApiKey: false }),
-          });
-          const data = await response.json();
-          if (response.ok) {
-            setCreditsRemaining(data.creditsRemaining);
-          }
-        } catch (error) {
-          console.error('Error fetching credits:', error);
-        }
-      };
-      fetchCredits();
-    } else if (hasApiKey) {
-      setCreditsRemaining(null); // Unlimited
-    }
-  }, [isSignedIn, hasApiKey]);
 
   // Keyboard shortcut for form submission
   useKeyboardShortcut(() => {
@@ -208,37 +176,6 @@ export function ComicCreationForm({
     }, 3500);
 
     try {
-      // Check credits
-      const hasApiKey = !!apiKey;
-      if (!hasApiKey) {
-        const creditsResponse = await fetch('/api/check-credits', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ hasApiKey }),
-        });
-        const creditsData = await creditsResponse.json();
-
-        if (!creditsResponse.ok) {
-          toast({
-            title: "Error",
-            description: "Failed to check credits",
-            variant: "destructive",
-          });
-          clearInterval(stepInterval);
-          setIsLoading(false);
-          return;
-        }
-
-        if (creditsData.creditsRemaining === 0) {
-          setShowApiModal(true);
-          clearInterval(stepInterval);
-          setIsLoading(false);
-          return;
-        }
-      }
-
       const characterUploads = await Promise.all(
         characterFiles.map((file) => uploadToS3(file).then(({ url }) => url))
       );
@@ -251,7 +188,6 @@ export function ComicCreationForm({
         },
         body: JSON.stringify({
           prompt,
-          ...(apiKey && { apiKey }),
           style,
           characterImages: characterUploads,
         }),
@@ -291,11 +227,6 @@ export function ComicCreationForm({
       clearInterval(stepInterval);
       setIsLoading(false);
     }
-  };
-
-  const handleApiKeySubmit = (key: string) => {
-    setApiKey(key);
-    setShowApiModal(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -498,13 +429,6 @@ export function ComicCreationForm({
                 </>
               )}
             </Button>
-            <div className="text-xs text-muted-foreground whitespace-nowrap">
-              {hasApiKey ? (
-                <>Using your API key (~$0.01 per comic)</>
-              ) : (
-                <>{creditsRemaining !== null ? `${creditsRemaining} credit${creditsRemaining === 1 ? '' : 's'} remaining` : 'Checking credits...'}</>
-              )}
-            </div>
           </div>
         ) : (
           <SignInButton mode="modal">
@@ -515,12 +439,6 @@ export function ComicCreationForm({
           </SignInButton>
         )}
       </div>
-
-      <ApiKeyModal
-        isOpen={showApiModal}
-        onClose={() => setShowApiModal(false)}
-        onSubmit={handleApiKeySubmit}
-      />
     </>
   );
 }

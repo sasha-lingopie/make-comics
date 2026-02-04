@@ -1,7 +1,6 @@
 "use client";
 
-import { Plus, Loader2, Key, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Loader2 } from "lucide-react";
 import { UserButton, SignedIn } from "@clerk/nextjs";
 
 interface PageData {
@@ -19,7 +18,6 @@ interface PageSidebarProps {
   onPageSelect: (index: number) => void;
   onAddPage: () => void;
   loadingPageId?: number | null;
-  onApiKeyClick?: () => void;
   isOwner?: boolean;
 }
 
@@ -29,7 +27,6 @@ export function PageSidebar({
   onPageSelect,
   onAddPage,
   loadingPageId,
-  onApiKeyClick,
   isOwner = true,
 }: PageSidebarProps) {
   return (
@@ -90,17 +87,6 @@ export function PageSidebar({
       </div>
 
       <div className="flex flex-col items-center gap-3">
-        {/* API Key Button */}
-        <Button
-          onClick={onApiKeyClick}
-          variant="ghost"
-          size="icon"
-          className="w-10 h-10 glass-panel glass-panel-hover text-muted-foreground hover:text-white"
-          title="Manage API Key"
-        >
-          <Key className="w-4 h-4" />
-        </Button>
-
         <SignedIn>
           <div className="w-10 h-10 glass-panel glass-panel-hover rounded-md flex items-center justify-center text-muted-foreground hover:text-white transition-colors">
             <UserButton
