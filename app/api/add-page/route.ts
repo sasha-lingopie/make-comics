@@ -18,24 +18,15 @@ import {
   isContentPolicyViolation,
   getContentPolicyErrorMessage,
 } from "@/lib/utils";
+import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL, DEFAULT_PAGE_LAYOUT, type ImageModelId, type PageLayoutId } from "@/lib/constants";
 
-const NEW_MODEL = false;
+function getModelConfig(modelId: ImageModelId) {
+  return IMAGE_MODELS.find((m) => m.id === modelId) || IMAGE_MODELS[0];
+}
 
-const IMAGE_MODEL = NEW_MODEL
-  ? "google/gemini-3-pro-image"
-  : "google/flash-image-2.5";
-
-// Dimensions vary based on model and whether reference images are used
-// gemini-3-pro-image: always supports 896x1200
-// flash-image-2.5: supports 864x1184 WITH ref images, 896x1200 WITHOUT ref images
-function getDimensions(hasReferenceImages: boolean) {
-  if (NEW_MODEL) {
-    return { width: 896, height: 1200 };
-  }
-  // flash-image-2.5 has different supported dimensions based on reference images
-  return hasReferenceImages
-    ? { width: 864, height: 1184 }
-    : { width: 896, height: 1152 };
+function getDimensions(modelId: ImageModelId, hasReferenceImages: boolean) {
+  const model = getModelConfig(modelId);
+  return hasReferenceImages ? model.dimensionsWithRef : model.dimensionsWithoutRef;
 }
 
 export async function POST(request: NextRequest) {
@@ -54,7 +45,18 @@ export async function POST(request: NextRequest) {
       pageId,
       prompt,
       characterImages = [],
-    } = await request.json();
+      model: modelId = DEFAULT_IMAGE_MODEL,
+      layout = DEFAULT_PAGE_LAYOUT,
+      customSystemPrompt,
+    } = await request.json() as {
+      storyId: string;
+      pageId?: string;
+      prompt: string;
+      characterImages?: string[];
+      model?: ImageModelId;
+      layout?: PageLayoutId;
+      customSystemPrompt?: string;
+    };
 
     if (!storyId || !prompt) {
       return NextResponse.json(
@@ -103,6 +105,9 @@ export async function POST(request: NextRequest) {
         pageNumber,
         prompt,
         characterImageUrls: characterImages,
+        model: modelId,
+        layout,
+        isCustomPrompt: !!customSystemPrompt,
       });
     }
 
@@ -127,8 +132,9 @@ export async function POST(request: NextRequest) {
     // These are already the most recent/relevant characters the user wants to use
     referenceImages.push(...characterImages);
 
-    // Get dimensions based on whether we have reference images
-    const dimensions = getDimensions(referenceImages.length > 0);
+    // Get model config and dimensions based on whether we have reference images
+    const modelConfig = getModelConfig(modelId);
+    const dimensions = getDimensions(modelId, referenceImages.length > 0);
 
     // Build the prompt with continuation context
     // For redraw, only include pages up to the current page being redrawn
@@ -147,6 +153,8 @@ export async function POST(request: NextRequest) {
       characterImages,
       isAddPage: true,
       previousPages,
+      layout,
+      customSystemPrompt,
     });
 
     const client = new Together({
@@ -162,7 +170,7 @@ export async function POST(request: NextRequest) {
       });
       const startTime = Date.now();
       response = await client.images.generate({
-        model: IMAGE_MODEL,
+        model: modelConfig.modelId,
         prompt: fullPrompt,
         width: dimensions.width,
         height: dimensions.height,

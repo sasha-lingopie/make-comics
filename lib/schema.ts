@@ -22,6 +22,9 @@ export const pages = pgTable('pages', {
   prompt: text('prompt').notNull(),
   characterImageUrls: jsonb('character_image_urls').$type<string[]>().default([]).notNull(),
   generatedImageUrl: text('generated_image_url'),
+  model: text('model'),
+  layout: text('layout'),
+  isCustomPrompt: boolean('is_custom_prompt').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

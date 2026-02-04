@@ -1,13 +1,13 @@
 "use client";
 
-import { FileText, ImageIcon, Palette } from "lucide-react";
+import { FileText, ImageIcon, Palette, Cpu, LayoutGrid, Sparkles } from "lucide-react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { COMIC_STYLES } from "@/lib/constants";
+import { COMIC_STYLES, IMAGE_MODELS, PAGE_LAYOUTS } from "@/lib/constants";
 
 interface PageData {
   id: number;
@@ -16,6 +16,9 @@ interface PageData {
   prompt: string;
   characterUploads?: string[];
   style: string;
+  model?: string;
+  layout?: string;
+  isCustomPrompt?: boolean;
 }
 
 interface PageInfoSheetProps {
@@ -26,6 +29,8 @@ interface PageInfoSheetProps {
 
 export function PageInfoSheet({ isOpen, onClose, page }: PageInfoSheetProps) {
   const styleName = COMIC_STYLES.find((s) => s.id === page.style)?.name || page.style;
+  const modelName = IMAGE_MODELS.find((m) => m.id === page.model)?.name || page.model || 'Default';
+  const layoutName = PAGE_LAYOUTS.find((l) => l.id === page.layout)?.name || page.layout || 'Default';
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -58,6 +63,30 @@ export function PageInfoSheet({ isOpen, onClose, page }: PageInfoSheetProps) {
             </div>
             <div className="inline-flex items-center px-3 py-1.5 glass-panel rounded-md">
               <span className="text-sm text-foreground">{styleName}</span>
+            </div>
+          </div>
+
+          {/* Generation Settings */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <Cpu className="w-3.5 h-3.5" />
+              <span>Generation Settings</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 glass-panel rounded-md">
+                <span className="text-xs text-muted-foreground">Model:</span>
+                <span className="text-sm text-foreground">{modelName}</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 glass-panel rounded-md">
+                <LayoutGrid className="w-3 h-3 text-muted-foreground" />
+                <span className="text-sm text-foreground">{layoutName}</span>
+              </div>
+              {page.isCustomPrompt && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 glass-panel rounded-md bg-amber-500/10 border border-amber-500/20">
+                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  <span className="text-sm text-amber-500">Custom Prompt</span>
+                </div>
+              )}
             </div>
           </div>
 

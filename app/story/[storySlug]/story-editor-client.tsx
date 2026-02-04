@@ -29,6 +29,9 @@ interface PageData {
   characterUploads?: string[];
   style: string;
   dbId?: string; // actual database UUID
+  model?: string;
+  layout?: string;
+  isCustomPrompt?: boolean;
 }
 
 interface StoryData {
@@ -96,6 +99,9 @@ export function StoryEditorClient() {
             characterUploads: page.characterImageUrls,
             style: storyData.style || "noir",
             dbId: page.id,
+            model: page.model,
+            layout: page.layout,
+            isCustomPrompt: page.isCustomPrompt,
           }))
         );
 
@@ -338,6 +344,9 @@ export function StoryEditorClient() {
   const handleGeneratePage = async (data: {
     prompt: string;
     characterUrls?: string[];
+    model?: string;
+    layout?: string;
+    customSystemPrompt?: string;
   }): Promise<void> => {
     // Add new page mode
     const response = await fetch("/api/add-page", {
@@ -349,6 +358,9 @@ export function StoryEditorClient() {
         storyId: story?.slug,
         prompt: data.prompt,
         characterImages: data.characterUrls || [],
+        model: data.model,
+        layout: data.layout,
+        customSystemPrompt: data.customSystemPrompt,
       }),
     });
 
@@ -378,6 +390,9 @@ export function StoryEditorClient() {
         characterUploads: data.characterUrls || [],
         style: story?.style || "noir",
         dbId: result.pageId,
+        model: data.model,
+        layout: data.layout,
+        isCustomPrompt: !!data.customSystemPrompt,
       },
     ]);
     setCurrentPage(pages.length);
@@ -458,6 +473,7 @@ export function StoryEditorClient() {
             ? pages[pages.length - 2].characterUploads || []
             : []
         }
+        storyStyle={story?.style}
       />
       <PageInfoSheet
         isOpen={showInfoSheet}

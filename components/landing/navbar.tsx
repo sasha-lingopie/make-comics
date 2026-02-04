@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Github, User, Plus } from "lucide-react";
 import Link from "next/link";
-import { SignInButton, SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
+import { SignInButton, SignedIn, SignedOut, useAuth, UserButton } from "@clerk/nextjs";
 
 export function Navbar() {
   const [stars, setStars] = useState<string>("-");
@@ -104,6 +104,13 @@ export function Navbar() {
                 </button>
               </Link>
             )}
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8 sm:w-9 sm:h-9",
+                },
+              }}
+            />
           </SignedIn>
         </div>
       </nav>
