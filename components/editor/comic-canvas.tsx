@@ -51,12 +51,12 @@ export function ComicCanvas({
            className="bg-white w-full p-3 shadow-2xl rounded-sm mx-auto group"
            style={{ maxWidth: "512px" }}
          >
-          <div className="w-full border-4 border-black overflow-hidden relative aspect-3/4">
-            <div className="w-full h-full bg-neutral-900">
+          <div className="w-full border-4 border-black overflow-hidden relative">
+            <div className="w-full bg-neutral-900">
               <img
                 src={page.image || "/placeholder.svg"}
                 alt={`Page ${page.id}`}
-                className="w-full h-full object-cover opacity-90 grayscale-10 contrast-110 cursor-pointer"
+                className="w-full h-auto object-contain opacity-90 grayscale-10 contrast-110 cursor-pointer"
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const clickX = e.clientX - rect.left;

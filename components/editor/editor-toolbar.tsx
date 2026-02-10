@@ -8,6 +8,7 @@ import {
   Info,
   Download,
   ScanText,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -22,6 +23,7 @@ interface EditorToolbarProps {
   isGeneratingPDF?: boolean;
   isOwner?: boolean;
   onTitleUpdate?: (newTitle: string) => void;
+  onStorySettings?: () => void;
 }
 
 export function EditorToolbar({
@@ -32,6 +34,7 @@ export function EditorToolbar({
   isGeneratingPDF = false,
   isOwner = true,
   onTitleUpdate,
+  onStorySettings,
 }: EditorToolbarProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -172,6 +175,17 @@ export function EditorToolbar({
           <Share className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>Share</span>
         </Button>
+
+        {isOwner && onStorySettings && (
+          <Button
+            variant="ghost"
+            className="hover:bg-secondary text-muted-foreground hover:text-white gap-1.5 sm:gap-2 text-xs h-8 sm:h-9 px-2 sm:px-3 hidden md:flex"
+            onClick={onStorySettings}
+          >
+            <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Settings</span>
+          </Button>
+        )}
 
         {storySlug && isOwner && (
           <Button

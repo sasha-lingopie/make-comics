@@ -155,6 +155,8 @@ export async function POST(request: NextRequest) {
       previousPages,
       layout,
       customSystemPrompt,
+      summary: story.summary || undefined,
+      characterDescriptions: story.characterDescriptions || undefined,
     });
 
     const client = new Together({
