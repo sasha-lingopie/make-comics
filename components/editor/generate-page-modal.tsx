@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { validateFileForUpload, generateFilePreview } from "@/lib/file-utils";
 import { useS3Upload } from "next-s3-upload";
+import { compressImage } from "@/lib/compress-image";
 import { isContentPolicyViolation } from "@/lib/utils";
 import { IMAGE_MODELS, PAGE_LAYOUTS, DEFAULT_IMAGE_MODEL, DEFAULT_PAGE_LAYOUT, type ImageModelId, type PageLayoutId } from "@/lib/constants";
 import { getDefaultSystemPrompt } from "@/lib/prompt";
@@ -215,10 +216,10 @@ export function GeneratePageModal({
         newSelected.add(prev.length + idx);
       });
 
-      // If we have more than 2 selected, deselect the oldest ones (keep most recent 2)
-      if (newSelected.size > 2) {
+      // If we have more than 5 selected, deselect the oldest ones (keep most recent 5)
+      if (newSelected.size > 5) {
         const selectedArray = Array.from(newSelected).sort((a, b) => b - a);
-        const toKeep = selectedArray.slice(0, 2);
+        const toKeep = selectedArray.slice(0, 5);
         newSelected.clear();
         toKeep.forEach((idx) => newSelected.add(idx));
       }
@@ -239,8 +240,8 @@ export function GeneratePageModal({
         // Allow deselection even if only 2 are selected
         newSelected.delete(index);
       } else {
-        // If already at max (2), remove the oldest selected first
-        if (newSelected.size >= 2) {
+        // If already at max (5), remove the oldest selected first
+        if (newSelected.size >= 5) {
           const selectedArray = Array.from(newSelected).sort((a, b) => a - b);
           newSelected.delete(selectedArray[0]); // Remove oldest
         }
@@ -288,8 +289,9 @@ export function GeneratePageModal({
       const characterUrls = await Promise.all(
         selectedCharacters.map(async (char) => {
           if (char.isNew && char.file) {
-            // Upload new file to S3
-            const { url } = await uploadToS3(char.file);
+            // Compress and upload new file to S3
+            const compressed = await compressImage(char.file);
+            const { url } = await uploadToS3(compressed);
             return url;
           } else {
             // Reuse existing URL
@@ -455,7 +457,7 @@ export function GeneratePageModal({
                       <Upload className="w-3.5 h-3.5" />
                       <span>
                         {characters.length === 0
-                          ? "Add characters (optional, max 2)"
+                          ? "Add characters (optional, max 5)"
                           : "Upload new character"}
                       </span>
                     </button>

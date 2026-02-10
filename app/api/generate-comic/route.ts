@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
       model: modelId = DEFAULT_IMAGE_MODEL,
       layout = DEFAULT_PAGE_LAYOUT,
       customSystemPrompt,
+      summary,
+      characterDescriptions,
     } = await request.json() as {
       storyId?: string;
       prompt: string;
@@ -62,6 +64,8 @@ export async function POST(request: NextRequest) {
       model?: ImageModelId;
       layout?: PageLayoutId;
       customSystemPrompt?: string;
+      summary?: string;
+      characterDescriptions?: string;
     };
 
     if (!prompt) {
@@ -120,6 +124,8 @@ export async function POST(request: NextRequest) {
       story = await createStory({
         title: prompt.length > 50 ? prompt.substring(0, 50) + "..." : prompt,
         description: undefined,
+        summary: summary || undefined,
+        characterDescriptions: characterDescriptions || undefined,
         userId: userId,
         style,
       });
@@ -149,6 +155,8 @@ export async function POST(request: NextRequest) {
       previousContext,
       layout,
       customSystemPrompt,
+      summary: story?.summary || summary,
+      characterDescriptions: story?.characterDescriptions || characterDescriptions,
     });
 
     const client = new Together({ apiKey });

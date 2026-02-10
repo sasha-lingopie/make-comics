@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { getStoryWithPagesBySlug, updateStory } from "@/lib/db-actions";
+import { getStoryWithPagesBySlug, updateStory, deleteStory } from "@/lib/db-actions";
 import { db } from "@/lib/db";
 import { stories } from "@/lib/schema";
 import { eq } from "drizzle-orm";
@@ -102,22 +102,87 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const { title } = await request.json();
+    const { title, summary, characterDescriptions } = await request.json();
 
-    if (!title || typeof title !== "string" || title.trim().length === 0) {
+    const updateData: { title?: string; summary?: string; characterDescriptions?: string } = {};
+
+    if (title !== undefined) {
+      if (typeof title !== "string" || title.trim().length === 0) {
+        return NextResponse.json(
+          { error: "Title must be a non-empty string" },
+          { status: 400 }
+        );
+      }
+      updateData.title = title.trim();
+    }
+
+    if (summary !== undefined) {
+      updateData.summary = summary || null;
+    }
+
+    if (characterDescriptions !== undefined) {
+      updateData.characterDescriptions = characterDescriptions || null;
+    }
+
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: "Title is required and must be a non-empty string" },
+        { error: "No fields to update" },
         { status: 400 }
       );
     }
 
-    await updateStory(result.story.id, { title: title.trim() });
+    await updateStory(result.story.id, updateData);
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating story:", error);
     return NextResponse.json(
       { error: "Failed to update story" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ storySlug: string }> }
+) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const { storySlug: slug } = await params;
+
+    if (!slug) {
+      return NextResponse.json(
+        { error: "Story slug is required" },
+        { status: 400 }
+      );
+    }
+
+    const result = await getStoryWithPagesBySlug(slug);
+
+    if (!result) {
+      return NextResponse.json({ error: "Story not found" }, { status: 404 });
+    }
+
+    if (result.story.userId !== userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    await deleteStory(result.story.id);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting story:", error);
+    return NextResponse.json(
+      { error: "Failed to delete story" },
       { status: 500 }
     );
   }

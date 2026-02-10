@@ -10,6 +10,8 @@ export interface BuildComicPromptOptions {
   previousPages?: Array<{ prompt: string }>;
   layout?: PageLayoutId;
   customSystemPrompt?: string;
+  summary?: string;
+  characterDescriptions?: string;
 }
 
 export function buildComicPrompt({
@@ -22,6 +24,8 @@ export function buildComicPrompt({
   previousPages = [],
   layout = DEFAULT_PAGE_LAYOUT,
   customSystemPrompt,
+  summary,
+  characterDescriptions,
 }: BuildComicPromptOptions): string {
   // If custom system prompt is provided, use it directly
   if (customSystemPrompt) {
@@ -36,6 +40,14 @@ export function buildComicPrompt({
 
   // Determine panel count for character consistency instructions
   const panelCount = getPanelCount(layout);
+
+  let storyOverview = "";
+  if (summary) {
+    storyOverview += `\nSTORY OVERVIEW:\n${summary}\n`;
+  }
+  if (characterDescriptions) {
+    storyOverview += `\nCHARACTER GUIDE:\n${characterDescriptions}\nUse these descriptions to maintain character consistency across all panels.\n`;
+  }
 
   let continuationContext = "";
   if (isContinuation && previousContext) {
@@ -73,11 +85,26 @@ CRITICAL DUAL CHARACTER FACE CONSISTENCY INSTRUCTIONS:
 - CONSISTENT PRESENCE: Both characters must appear together in ${presenceText}
 - STYLE APPLICATION: Apply ${style} comic art style while maintaining EXACT facial features from references
 - NO FACE VARIATION: Never alter or modify either character's face from their reference images`;
+    } else if (characterImages.length >= 3) {
+      const ordinals = ["FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH"];
+      const charCount = characterImages.length;
+      const presenceText = panelCount === 1 ? "the panel" : `at least ${Math.max(1, panelCount - 1)} of the ${panelCount} panels`;
+      const charLines = characterImages
+        .map((_, i) => `- CHARACTER ${i + 1} REFERENCE: Use the ${ordinals[i]} uploaded image as EXACT reference for Character ${i + 1}'s face and appearance`)
+        .join("\n");
+      characterSection = `
+CRITICAL MULTI-CHARACTER FACE CONSISTENCY INSTRUCTIONS (${charCount} CHARACTERS):
+${charLines}
+- FACE MATCHING: Every character's face must be IDENTICAL to their respective reference image - same eyes, nose, mouth, hair, facial structure
+- VISUAL DISTINCTION: Keep all ${charCount} characters clearly visually distinct with their unique faces, hair, and features
+- CONSISTENT PRESENCE: Characters should appear together in ${presenceText}
+- STYLE APPLICATION: Apply ${style} comic art style to body/pose/action but KEEP EACH CHARACTER'S FACE EXACTLY AS IN THEIR REFERENCE IMAGE
+- NO FACE VARIATION: Never alter or modify any character's face from their reference images`;
     }
   }
 
   const systemPrompt = `Professional comic book page illustration.
-${continuationContext}
+${storyOverview}${continuationContext}
 ${characterSection}
 
 CHARACTER CONSISTENCY RULES (HIGHEST PRIORITY):
@@ -110,12 +137,12 @@ COMPOSITION:
 
 function getPanelCount(layout: PageLayoutId): number {
   switch (layout) {
-    case "single-panel": return 1;
-    case "3-panel-vertical": return 3;
-    case "4-panel-grid": return 4;
-    case "classic-5-panel": return 5;
-    case "6-panel-grid": return 6;
-    default: return 5;
+    case "webtoon-2-panel": return 2;
+    case "webtoon-3-panel": return 3;
+    case "webtoon-4-panel": return 4;
+    case "webtoon-5-panel": return 5;
+    case "webtoon-6-panel": return 6;
+    default: return 6;
   }
 }
 

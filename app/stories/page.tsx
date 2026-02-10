@@ -3,10 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Trash2 } from "lucide-react";
 import { Navbar } from "@/components/landing/navbar";
 import { StoryLoader } from "@/components/ui/story-loader";
 import { COMIC_STYLES } from "@/lib/constants";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Story {
   id: string;
@@ -24,6 +35,9 @@ export default function StoriesPage() {
   const [stories, setStories] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [storyToDelete, setStoryToDelete] = useState<Story | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchStories();
@@ -41,6 +55,40 @@ export default function StoriesPage() {
       setError(err instanceof Error ? err.message : "Failed to load stories");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteStory = async () => {
+    if (!storyToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/stories/${storyToDelete.slug}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete story");
+      }
+
+      setStories((prev) => prev.filter((s) => s.id !== storyToDelete.id));
+      toast({
+        title: "Story deleted",
+        description: `"${storyToDelete.title}" has been deleted.`,
+        duration: 3000,
+      });
+    } catch (err) {
+      console.error("Error deleting story:", err);
+      toast({
+        title: "Failed to delete story",
+        description: err instanceof Error ? err.message : "An error occurred.",
+        variant: "destructive",
+        duration: 4000,
+      });
+    } finally {
+      setIsDeleting(false);
+      setStoryToDelete(null);
     }
   };
 
@@ -82,6 +130,7 @@ export default function StoriesPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-background flex flex-col overflow-hidden relative">
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo/10 rounded-full blur-[120px]" />
@@ -132,12 +181,15 @@ export default function StoriesPage() {
 
                 <div className="opacity-0 animate-fade-in-up animation-delay-200 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
                   {stories.map((story, index) => (
-                    <button
+                    <div
                       key={story.id}
-                      onClick={() => router.push(`/story/${story.slug}`)}
-                      className={`opacity-0 animate-fade-in-up group relative glass-panel p-3 rounded-lg hover:shadow-indigo/20 hover:shadow-2xl transition-all duration-500 border border-border/50  backdrop-blur-sm focus:outline-none`}
+                      className={`opacity-0 animate-fade-in-up group relative glass-panel p-3 rounded-lg hover:shadow-indigo/20 hover:shadow-2xl transition-all duration-500 border border-border/50  backdrop-blur-sm`}
                       style={{ animationDelay: `${200 + index * 100}ms` }}
                     >
+                      <button
+                        onClick={() => router.push(`/story/${story.slug}`)}
+                        className="w-full h-full focus:outline-none"
+                      >
                       <div className="w-full h-full bg-neutral-900 border-4 border-black overflow-hidden relative transition-colors duration-300">
                         {story.coverImage ? (
                           <>
@@ -176,7 +228,18 @@ export default function StoriesPage() {
                           </div>
                         )}
                       </div>
-                    </button>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setStoryToDelete(story);
+                        }}
+                        className="absolute top-1 right-1 w-7 h-7 bg-black/70 hover:bg-red-600 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 border border-white/10 hover:border-red-500"
+                        title="Delete story"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-white/70 hover:text-white" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </>
@@ -185,5 +248,26 @@ export default function StoriesPage() {
         </div>
       </main>
     </div>
+      <AlertDialog open={!!storyToDelete} onOpenChange={(open) => !open && setStoryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Story</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{storyToDelete?.title}&quot;? This will permanently remove the story and all its pages. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteStory}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -7,6 +7,8 @@ export const stories = pgTable('stories', {
   title: text('title').notNull(),
   slug: text('slug').notNull().unique(),
   description: text('description'),
+  summary: text('summary'),
+  characterDescriptions: text('character_descriptions'),
   style: text('style').default('noir').notNull(),
   userId: text('user_id').notNull(),
   usesOwnApiKey: boolean('uses_own_api_key').default(false),

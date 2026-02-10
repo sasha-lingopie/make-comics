@@ -9,6 +9,7 @@ import { PageSidebar } from "@/components/editor/page-sidebar";
 import { ComicCanvas } from "@/components/editor/comic-canvas";
 import { PageInfoSheet } from "@/components/editor/page-info-sheet";
 import { GeneratePageModal } from "@/components/editor/generate-page-modal";
+import { StorySettingsModal } from "@/components/editor/story-settings-modal";
 import { StoryLoader } from "@/components/ui/story-loader";
 import {
   AlertDialog,
@@ -39,6 +40,8 @@ interface StoryData {
   slug: string;
   title: string;
   description?: string | null;
+  summary?: string | null;
+  characterDescriptions?: string | null;
   style: string;
   userId?: string | null;
   isOwner?: boolean;
@@ -64,6 +67,7 @@ export function StoryEditorClient() {
     string[]
   >([]);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [showStorySettings, setShowStorySettings] = useState(false);
   const { toast } = useToast();
 
 
@@ -202,6 +206,8 @@ export function StoryEditorClient() {
           pageId: currentPageData.dbId, // Add pageId to override existing page
           prompt: currentPageData.prompt,
           characterImages: currentPageData.characterUploads || [],
+          model: currentPageData.model,
+          layout: currentPageData.layout,
         }),
       });
 
@@ -426,6 +432,7 @@ export function StoryEditorClient() {
         isGeneratingPDF={isGeneratingPDF}
         isOwner={isOwner}
         onTitleUpdate={handleTitleUpdate}
+        onStorySettings={() => setShowStorySettings(true)}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -479,6 +486,18 @@ export function StoryEditorClient() {
         isOpen={showInfoSheet}
         onClose={() => setShowInfoSheet(false)}
         page={pages[currentPage]}
+      />
+
+      <StorySettingsModal
+        isOpen={showStorySettings}
+        onClose={() => setShowStorySettings(false)}
+        storySlug={story.slug}
+        title={story.title}
+        summary={story.summary || null}
+        characterDescriptions={story.characterDescriptions || null}
+        onUpdate={(data) => {
+          setStory((prev) => prev ? { ...prev, ...data } : null);
+        }}
       />
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

@@ -53,8 +53,28 @@ export async function GET(request: NextRequest) {
       const imgBuffer = imageBuffers[i];
       const imgData = `data:image/jpeg;base64,${imgBuffer.toString("base64")}`;
 
-      // For simplicity, assume images fit the page; in production you might want to scale
-      pdf.addImage(imgData, "JPEG", 10, 10, 190, 277); // A4 portrait size minus margins
+      // Scale image to fit page while preserving aspect ratio
+      const pageWidth = 190; // A4 width minus margins
+      const pageHeight = 277; // A4 height minus margins
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgAspect = imgProps.width / imgProps.height;
+      const pageAspect = pageWidth / pageHeight;
+
+      let imgW, imgH, imgX, imgY;
+      if (imgAspect > pageAspect) {
+        // Image is wider relative to page — fit to width
+        imgW = pageWidth;
+        imgH = pageWidth / imgAspect;
+        imgX = 10;
+        imgY = 10 + (pageHeight - imgH) / 2;
+      } else {
+        // Image is taller relative to page — fit to height
+        imgH = pageHeight;
+        imgW = pageHeight * imgAspect;
+        imgX = 10 + (pageWidth - imgW) / 2;
+        imgY = 10;
+      }
+      pdf.addImage(imgData, "JPEG", imgX, imgY, imgW, imgH);
 
       // Add "Created by Make Comics" at the bottom
       pdf.setFont("helvetica", "bold");

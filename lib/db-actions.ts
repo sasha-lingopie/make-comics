@@ -3,7 +3,7 @@ import { stories, pages, type Story, type Page } from './schema';
 import { eq } from 'drizzle-orm';
 import { generateComicSlug } from './slug-generator';
 
-export async function createStory(data: { title: string; description?: string; userId: string; style?: string }): Promise<Story> {
+export async function createStory(data: { title: string; description?: string; summary?: string; characterDescriptions?: string; userId: string; style?: string }): Promise<Story> {
   // Generate a unique slug
   let slug = generateComicSlug();
   let attempts = 0;
@@ -45,7 +45,7 @@ export async function updatePage(pageId: string, generatedImageUrl: string): Pro
     .where(eq(pages.id, pageId));
 }
 
-export async function updateStory(storyId: string, data: { title?: string; description?: string }): Promise<void> {
+export async function updateStory(storyId: string, data: { title?: string; description?: string | null; summary?: string | null; characterDescriptions?: string | null }): Promise<void> {
   await db.update(stories)
     .set({ ...data, updatedAt: new Date() })
     .where(eq(stories.id, storyId));

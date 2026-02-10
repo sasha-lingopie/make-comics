@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Upload, X, Check, ArrowRight, Loader2, Settings2, ChevronDown, Eye } from "lucide-react";
+import { Upload, X, Check, ArrowRight, Loader2, Settings2, ChevronDown, Eye, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useS3Upload } from "next-s3-upload";
@@ -12,6 +12,7 @@ import { COMIC_STYLES, IMAGE_MODELS, PAGE_LAYOUTS, DEFAULT_IMAGE_MODEL, DEFAULT_
 import { getDefaultSystemPrompt } from "@/lib/prompt";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { isContentPolicyViolation } from "@/lib/utils";
+import { compressImage } from "@/lib/compress-image";
 
 interface ComicCreationFormProps {
   prompt: string;
@@ -29,6 +30,8 @@ const STYLE_STORAGE_KEY = 'comic-style-preference';
 const MODEL_STORAGE_KEY = 'comic-model-preference';
 const LAYOUT_STORAGE_KEY = 'comic-layout-preference';
 const CUSTOM_PROMPT_STORAGE_KEY = 'comic-custom-prompt';
+const SUMMARY_STORAGE_KEY = 'comic-summary-draft';
+const CHAR_DESC_STORAGE_KEY = 'comic-char-descriptions-draft';
 
 export function ComicCreationForm({
   prompt,
@@ -56,6 +59,9 @@ export function ComicCreationForm({
   const [showLayoutDropdown, setShowLayoutDropdown] = useState(false);
   const [customSystemPrompt, setCustomSystemPrompt] = useState<string>("");
   const [showPromptPreview, setShowPromptPreview] = useState(false);
+  const [summary, setSummary] = useState("");
+  const [characterDescriptions, setCharacterDescriptions] = useState("");
+  const [showStoryContext, setShowStoryContext] = useState(false);
 
   // Initialize style with initial value, load from localStorage after mount
   const [style, setStyle] = useState(initialStyle || DEFAULT_STYLE);
@@ -106,6 +112,12 @@ export function ComicCreationForm({
     
     const savedPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE_KEY);
     if (savedPrompt) setCustomSystemPrompt(savedPrompt);
+    
+    const savedSummary = localStorage.getItem(SUMMARY_STORAGE_KEY);
+    if (savedSummary) setSummary(savedSummary);
+    
+    const savedCharDesc = localStorage.getItem(CHAR_DESC_STORAGE_KEY);
+    if (savedCharDesc) setCharacterDescriptions(savedCharDesc);
   }, []);
 
   // Save preferences to localStorage
@@ -130,6 +142,16 @@ export function ComicCreationForm({
     }
   }, [customSystemPrompt]);
 
+  useEffect(() => {
+    if (summary) localStorage.setItem(SUMMARY_STORAGE_KEY, summary);
+    else localStorage.removeItem(SUMMARY_STORAGE_KEY);
+  }, [summary]);
+
+  useEffect(() => {
+    if (characterDescriptions) localStorage.setItem(CHAR_DESC_STORAGE_KEY, characterDescriptions);
+    else localStorage.removeItem(CHAR_DESC_STORAGE_KEY);
+  }, [characterDescriptions]);
+
   // Keyboard shortcut for form submission
   useKeyboardShortcut(() => {
     if (!isLoading && prompt.trim()) {
@@ -147,7 +169,7 @@ export function ComicCreationForm({
     const validFiles = Array.from(newFiles).filter((file) =>
       file.type.startsWith("image/")
     );
-    const totalFiles = [...characterFiles, ...validFiles].slice(0, 2); // Max 2 files
+    const totalFiles = [...characterFiles, ...validFiles].slice(0, 5); // Max 5 files
 
     setCharacterFiles(totalFiles);
 
@@ -213,8 +235,11 @@ export function ComicCreationForm({
     }, 3500);
 
     try {
+      const compressedFiles = await Promise.all(
+        characterFiles.map((file) => compressImage(file))
+      );
       const characterUploads = await Promise.all(
-        characterFiles.map((file) => uploadToS3(file).then(({ url }) => url))
+        compressedFiles.map((file) => uploadToS3(file).then(({ url }) => url))
       );
 
       // Use API to create story and generate first page
@@ -230,6 +255,8 @@ export function ComicCreationForm({
           model,
           layout,
           customSystemPrompt: customSystemPrompt || undefined,
+          summary: summary || undefined,
+          characterDescriptions: characterDescriptions || undefined,
         }),
       });
 
@@ -243,8 +270,10 @@ export function ComicCreationForm({
 
       const result = await response.json();
 
-      // Clear the draft since submission was successful
+      // Clear the drafts since submission was successful
       localStorage.removeItem(PROMPT_STORAGE_KEY);
+      localStorage.removeItem(SUMMARY_STORAGE_KEY);
+      localStorage.removeItem(CHAR_DESC_STORAGE_KEY);
       clearInterval(stepInterval);
       // Redirect to the story editor using slug
       router.push(`/story/${result.storySlug}`);
@@ -305,6 +334,52 @@ export function ComicCreationForm({
             className="w-full bg-transparent border-none text-sm text-white placeholder-muted-foreground/50 focus:ring-0 focus:outline-none resize-none h-16 leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
           />
 
+          {/* Story Context Section */}
+          <div className="mt-3 pt-3 border-t border-border/30">
+            <button
+              type="button"
+              onClick={() => !isLoading && setShowStoryContext(!showStoryContext)}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors disabled:opacity-50 mb-2"
+            >
+              <BookOpen className="w-3 h-3" />
+              <span>Story Context</span>
+              {(summary || characterDescriptions) && (
+                <span className="text-emerald-500 text-[10px]">●</span>
+              )}
+              <ChevronDown className={`w-3 h-3 transition-transform ${showStoryContext ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showStoryContext && (
+              <div className="space-y-3 mb-3">
+                <div>
+                  <label className="text-[10px] uppercase text-muted-foreground tracking-[0.02em] font-medium mb-1 block">
+                    Story Summary
+                  </label>
+                  <textarea
+                    value={summary}
+                    onChange={(e) => setSummary(e.target.value)}
+                    placeholder="Describe the overall story, setting, and tone..."
+                    disabled={isLoading}
+                    className="w-full bg-background/50 border border-border/30 rounded-md text-xs text-white placeholder-muted-foreground/40 focus:ring-1 focus:ring-indigo/30 focus:outline-none resize-none h-14 p-2 leading-relaxed disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase text-muted-foreground tracking-[0.02em] font-medium mb-1 block">
+                    Character Descriptions
+                  </label>
+                  <textarea
+                    value={characterDescriptions}
+                    onChange={(e) => setCharacterDescriptions(e.target.value)}
+                    placeholder="Name: Detective Noir&#10;Appearance: Tall man in dark trenchcoat, sharp jawline..."
+                    disabled={isLoading}
+                    className="w-full bg-background/50 border border-border/30 rounded-md text-xs text-white placeholder-muted-foreground/40 focus:ring-1 focus:ring-indigo/30 focus:outline-none resize-none h-14 p-2 leading-relaxed disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="mt-3 pt-3 border-t border-border/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0 w-full sm:w-auto">
               {characterFiles.length > 0 ? (
@@ -333,7 +408,7 @@ export function ComicCreationForm({
                       </button>
                     </div>
                   ))}
-                  {characterFiles.length < 2 && (
+                  {characterFiles.length < 5 && (
                     <button
                       onClick={() =>
                         !isLoading && fileInputRef.current?.click()
@@ -354,7 +429,7 @@ export function ComicCreationForm({
                   <Upload className="w-3.5 h-3.5" />
                   <span>Upload Characters</span>
                   <span className="text-muted-foreground/50 hidden sm:inline">
-                    (Max 2)
+                    (Max 5)
                   </span>
                 </button>
               )}
